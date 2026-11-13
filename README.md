@@ -18,6 +18,6 @@ MEDICHAIN is an AI-powered healthcare coordination platform designed to improve 
 - AI Integration: Gemini API
 - Version Control: Git and GitHub
 
-Disclaimer
+# Disclaimer
 
 MEDICHAIN provides informational assistance and is not a substitute for professional medical diagnosis or treatment.
