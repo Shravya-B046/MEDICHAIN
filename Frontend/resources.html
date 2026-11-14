@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hospital Resources | MEDICHAIN</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="js/api.js"></script>
 </head>
 
 <body>
@@ -67,42 +68,42 @@
 
             <div class="stat-card">
                 <h3>🛏️ Total Beds</h3>
-                <h1>250</h1>
+                <h1 id="resTotalBeds">250</h1>
                 <p>Registered beds</p>
                 <p class="demo-label">Demo data</p>
             </div>
 
             <div class="stat-card">
                 <h3>🟢 Available Beds</h3>
-                <h1>186</h1>
+                <h1 id="resAvailableBeds">186</h1>
                 <p>Currently available</p>
                 <p class="demo-label">Demo data</p>
             </div>
 
             <div class="stat-card">
                 <h3>🔴 Occupied Beds</h3>
-                <h1>64</h1>
+                <h1 id="resOccupiedBeds">64</h1>
                 <p>Currently occupied</p>
                 <p class="demo-label">Demo data</p>
             </div>
 
             <div class="stat-card">
                 <h3>🏥 ICU Beds</h3>
-                <h1>18</h1>
+                <h1 id="resIcuBeds">18</h1>
                 <p>Available ICU beds</p>
                 <p class="demo-label">Demo data</p>
             </div>
 
             <div class="stat-card">
                 <h3>👨‍⚕️ Doctors On Duty</h3>
-                <h1>32</h1>
+                <h1 id="resDoctors">32</h1>
                 <p>Available medical staff</p>
                 <p class="demo-label">Demo data</p>
             </div>
 
             <div class="stat-card">
                 <h3>🚑 Available Ambulances</h3>
-                <h1>08</h1>
+                <h1 id="resAmbulances">08</h1>
                 <p>Ready for dispatch</p>
                 <p class="demo-label">Demo data</p>
             </div>
@@ -127,7 +128,7 @@
                     </tr>
                 </thead>
 
-                <tbody>
+                <tbody id="resourceTableBody">
 
                     <tr>
                         <td>General Beds</td>
@@ -177,6 +178,7 @@
 
 </div>
 
+<script src="js/api.js"></script>
 <script src="js/script.js"></script>
 
 </body>

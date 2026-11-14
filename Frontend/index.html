@@ -1,181 +1,186 @@
-
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MEDICHAIN | Smart Healthcare Platform</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="js/api.js"></script>
 </head>
 
 <body>
 
-<div class="dashboard">
+    <div class="dashboard">
 
-    <!-- Sidebar -->
-    <aside class="sidebar">
+        <!-- Sidebar -->
+        <aside class="sidebar">
 
-        <div class="logo">MEDI<span>CHAIN</span></div>
+            <div class="logo">MEDI<span>CHAIN</span></div>
 
-        <h4>MAIN MENU</h4>
+            <h4>MAIN MENU</h4>
 
-        <ul>
-            <li><a href="index.html" class="active">🏠 Dashboard</a></li>
-            <li><a href="assistant.html">🩺 AI Health Assistant</a></li>
-            <li><a href="resources.html">🏥 Hospital Resources</a></li>
-            <li><a href="emergency.html">🚨 Emergency Coordination</a></li>
-            <li><a href="reports.html">📄 Report Analysis</a></li>
-            <li><a href="admin.html">⚙️ Admin Panel</a></li>
-        </ul>
+            <ul>
+                <li><a href="index.html" class="active">🏠 Dashboard</a></li>
+                <li><a href="assistant.html">🩺 AI Health Assistant</a></li>
+                <li><a href="resources.html">🏥 Hospital Resources</a></li>
+                <li><a href="emergency.html">🚨 Emergency Coordination</a></li>
+                <li><a href="reports.html">📄 Report Analysis</a></li>
+                <li><a href="admin.html">⚙️ Admin Panel</a></li>
+            </ul>
 
-    </aside>
-
-
-    <!-- Main Content -->
-    <main class="main-content">
-
-        <!-- Topbar -->
-        <header class="topbar">
-
-            <div>
-                <h2>Healthcare Dashboard</h2>
-                <p>Welcome to your smart healthcare platform.</p>            </div>
-
-           <button class="profile" onclick="window.location.href='admin.html'">
-    👤 Admin
-</button>
-
-        </header>
+        </aside>
 
 
-        <!-- Welcome Section -->
-        <section class="welcome">
+        <!-- Main Content -->
+        <main class="main-content">
 
-            <h2>Welcome to MEDICHAIN 👋</h2>
+            <!-- Topbar -->
+            <header class="topbar">
 
-            <p>
-                A smarter healthcare ecosystem designed to connect
-                patients, hospitals and emergency services through
-                intelligent technology.
+                <div>
+                    <h2>Healthcare Dashboard</h2>
+                    <p>Welcome to your smart healthcare platform.</p>
+                </div>
+
+                <button class="profile" onclick="window.location.href='admin.html'">
+                    👤 Admin
+                </button>
+
+            </header>
+
+
+            <!-- Welcome Section -->
+            <section class="welcome">
+
+                <h2>Welcome to MEDICHAIN 👋</h2>
+
+                <p>
+                    A smarter healthcare ecosystem designed to connect
+                    patients, hospitals and emergency services through
+                    intelligent technology.
+                </p>
+
+            </section>
+
+
+            <!-- Statistics -->
+            <h3 class="section-title">Platform Overview</h3>
+
+            <section class="stats">
+
+                <div class="stat-card">
+                    <h3>🏥 Hospitals Connected</h3>
+                    <h1 id="overviewHospitals">24</h1>
+                    <p class="demo-label">Demo data</p>
+                </div>
+
+                <div class="stat-card">
+                    <h3>🛏️ Available Beds</h3>
+                    <h1 id="overviewBeds">186</h1>
+                    <p class="demo-label">Demo data</p>
+                </div>
+
+                <div class="stat-card">
+                    <h3>🚑 Active Emergencies</h3>
+                    <h1 id="overviewEmergencies">08</h1>
+                    <p class="demo-label">Demo data</p>
+                </div>
+
+            </section>
+
+
+            <!-- Features -->
+            <h3 class="section-title">Our Core Features</h3>
+
+            <section class="features">
+
+                <div class="feature-card" id="assistant">
+
+                    <div class="icon">🩺</div>
+
+                    <h3>AI Health Assistant</h3>
+
+                    <p>
+                        Interact with an AI-powered health assistant
+                        to understand symptoms and receive general
+                        health guidance.
+                    </p>
+
+                    <button onclick="openFeature('assistant')">
+                        Explore Assistant →
+                    </button>
+
+                </div>
+
+
+                <div class="feature-card" id="resources">
+
+                    <div class="icon">🏥</div>
+
+                    <h3>Hospital Resource Dashboard</h3>
+
+                    <p>
+                        Monitor hospital resources including available
+                        beds, ICU capacity, doctors and medical facilities.
+                    </p>
+
+                    <button onclick="openFeature('resources')">
+                        View Resources →
+                    </button>
+
+                </div>
+
+
+                <div class="feature-card" id="emergency">
+
+                    <div class="icon">🚨</div>
+
+                    <h3>Emergency Coordination</h3>
+
+                    <p>
+                        Coordinate emergency requests and help connect
+                        patients with nearby hospitals and emergency services.
+                    </p>
+
+                    <button onclick="openFeature('emergency')">
+                        Manage Emergency →
+                    </button>
+
+                </div>
+
+
+                <div class="feature-card" id="reports">
+
+                    <div class="icon">📄</div>
+
+                    <h3>AI Preliminary Report Analysis</h3>
+
+                    <p>
+                        Upload medical reports and receive AI-assisted
+                        preliminary summaries to help understand report findings.
+                    </p>
+
+                    <button onclick="openFeature('reports')">
+                        Analyze Report →
+                    </button>
+
+                </div>
+
+            </section>
+
+            <p class="disclaimer">
+                All statistics on this page are demonstration data only and do not reflect live hospital availability or
+                real emergency counts.
             </p>
 
-        </section>
+        </main>
 
+    </div>
 
-        <!-- Statistics -->
-        <h3 class="section-title">Platform Overview</h3>
-
-        <section class="stats">
-
-            <div class="stat-card">
-                <h3>🏥 Hospitals Connected</h3>
-                <h1>24</h1>
-                <p class="demo-label">Demo data</p>
-            </div>
-
-            <div class="stat-card">
-                <h3>🛏️ Available Beds</h3>
-                <h1>186</h1>
-                <p class="demo-label">Demo data</p>
-            </div>
-
-            <div class="stat-card">
-                <h3>🚑 Active Emergencies</h3>
-                <h1>08</h1>
-                <p class="demo-label">Demo data</p>
-            </div>
-
-        </section>
-
-
-        <!-- Features -->
-        <h3 class="section-title">Our Core Features</h3>
-
-        <section class="features">
-
-            <div class="feature-card" id="assistant">
-
-                <div class="icon">🩺</div>
-
-                <h3>AI Health Assistant</h3>
-
-                <p>
-                    Interact with an AI-powered health assistant
-                    to understand symptoms and receive general
-                    health guidance.
-                </p>
-
-                <button onclick="openFeature('assistant')">
-                    Explore Assistant →
-                </button>
-
-            </div>
-
-
-            <div class="feature-card" id="resources">
-
-                <div class="icon">🏥</div>
-
-                <h3>Hospital Resource Dashboard</h3>
-
-                <p>
-                    Monitor hospital resources including available
-                    beds, ICU capacity, doctors and medical facilities.
-                </p>
-
-                <button onclick="openFeature('resources')">
-                    View Resources →
-                </button>
-
-            </div>
-
-
-            <div class="feature-card" id="emergency">
-
-                <div class="icon">🚨</div>
-
-                <h3>Emergency Coordination</h3>
-
-                <p>
-                    Coordinate emergency requests and help connect
-                    patients with nearby hospitals and emergency services.
-                </p>
-
-                <button onclick="openFeature('emergency')">
-                    Manage Emergency →
-                </button>
-
-            </div>
-
-
-            <div class="feature-card" id="reports">
-
-                <div class="icon">📄</div>
-
-                <h3>AI Preliminary Report Analysis</h3>
-
-                <p>
-                    Upload medical reports and receive AI-assisted
-                    preliminary summaries to help understand report findings.
-                </p>
-
-                <button onclick="openFeature('reports')">
-                    Analyze Report →
-                </button>
-
-            </div>
-
-        </section>
-
-        <p class="disclaimer">
-            All statistics on this page are demonstration data only and do not reflect live hospital availability or real emergency counts.
-        </p>
-
-    </main>
-
-</div>
-
-<script src="js/script.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/script.js"></script>
 
 </body>
+
 </html>

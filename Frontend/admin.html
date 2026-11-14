@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MEDICHAIN | Admin Panel</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="js/api.js"></script>
 
     <style>
         .admin-form {
@@ -238,32 +239,54 @@
         </div>
 
         <p class="disclaimer">
-            Demonstration Admin Panel. Hospital registrations are stored
-            temporarily in this browser's localStorage and are not connected to a live database.
-            This is prototype storage only — data will be lost if browser storage is cleared.
+            Demonstration Admin Panel. Hospital registrations are managed in the MEDICHAIN backend database
+            with local browser storage fallback for resilience.
         </p>
 
     </main>
 
 </div>
 
+<script src="js/api.js"></script>
 <script>
 
-    // Sample hospital shown when no localStorage data exists
-    const SAMPLE_HOSPITALS = [
-        { name: "City Hospital", location: "Mangaluru", contact: "9876543210", sample: true }
-    ];
+    let hospitals = [];
+    let isConnectedToBackend = false;
 
-    // Load saved hospitals from browser storage (localStorage key: medichain_hospitals)
-    let hospitals = JSON.parse(localStorage.getItem("medichain_hospitals")) || null;
+    async function loadHospitals() {
+        const hospitalList = document.getElementById("hospitalList");
+        const hospitalCount = document.getElementById("hospitalCount");
+        const hospitalMessage = document.getElementById("hospitalMessage");
 
-    // First visit: pre-populate with sample data so the table is not blank
-    if (hospitals === null) {
-        hospitals = SAMPLE_HOSPITALS.slice();
+        // Try loading from real backend API
+        try {
+            if (window.medichainApi) {
+                const apiHospitals = await window.medichainApi.getHospitals();
+                if (Array.isArray(apiHospitals)) {
+                    hospitals = apiHospitals;
+                    isConnectedToBackend = true;
+                    renderHospitalTable();
+                    return;
+                }
+            }
+        } catch (err) {
+            console.warn("Backend not reachable for hospitals, using localStorage fallback:", err);
+            isConnectedToBackend = false;
+        }
+
+        // Fallback to localStorage if backend is not reachable
+        const saved = JSON.parse(localStorage.getItem("medichain_hospitals")) || null;
+        if (saved !== null) {
+            hospitals = saved;
+        } else {
+            hospitals = [
+                { id: 1, name: "City Hospital", location: "Mangaluru", contact: "9876543210", is_sample: true }
+            ];
+        }
+        renderHospitalTable();
     }
 
-    function displayHospitals() {
-
+    function renderHospitalTable() {
         const hospitalList = document.getElementById("hospitalList");
         const hospitalCount = document.getElementById("hospitalCount");
 
@@ -282,8 +305,7 @@
             return;
         }
 
-        hospitals.forEach(function(hospital, index) {
-
+        hospitals.forEach(function(hospital) {
             const row = document.createElement("tr");
 
             [hospital.name, hospital.location, hospital.contact].forEach(function(value) {
@@ -294,10 +316,9 @@
 
             const actionCell = document.createElement("td");
 
-            if (hospital.sample) {
-                // Sample row: show a label instead of a delete button
+            if (hospital.is_sample || hospital.sample) {
                 const label = document.createElement("span");
-                label.textContent = "Sample";
+                label.textContent = "Sample Facility";
                 label.style.color = "#94a3b8";
                 label.style.fontSize = "12px";
                 actionCell.appendChild(label);
@@ -306,74 +327,80 @@
                 deleteButton.textContent = "Delete";
                 deleteButton.className = "delete-btn";
                 deleteButton.onclick = function() {
-                    deleteHospital(index);
+                    deleteHospital(hospital.id);
                 };
                 actionCell.appendChild(deleteButton);
             }
 
             row.appendChild(actionCell);
             hospitalList.appendChild(row);
-
         });
 
-        // Count: 24 base (demo) + user-added hospitals (excluding sample row)
-        const userAdded = hospitals.filter(function(h) { return !h.sample; }).length;
-        hospitalCount.textContent = 24 + userAdded;
+        // 24 base demo + added hospitals
+        const customCount = hospitals.filter(function(h) { return !h.is_sample && !h.sample; }).length;
+        hospitalCount.textContent = 24 + customCount;
     }
 
     // Add a new hospital
-    document.getElementById("hospitalForm").addEventListener("submit", function(event) {
-
+    document.getElementById("hospitalForm").addEventListener("submit", async function(event) {
         event.preventDefault();
 
         const name = document.getElementById("hospitalName").value.trim();
         const location = document.getElementById("hospitalLocation").value.trim();
         const contact = document.getElementById("hospitalContact").value.trim();
+        const messageEl = document.getElementById("hospitalMessage");
 
         if (!name || !location || !contact) {
             return;
         }
 
-        hospitals.push({
-            name: name,
-            location: location,
-            contact: contact,
-            sample: false
-        });
+        messageEl.innerHTML = '<span class="spinner"></span> Registering hospital...';
 
-        // Persist only non-sample hospitals to localStorage
-        const toSave = hospitals.filter(function(h) { return !h.sample; });
-        localStorage.setItem("medichain_hospitals", JSON.stringify(toSave));
+        try {
+            if (isConnectedToBackend && window.medichainApi) {
+                const created = await window.medichainApi.createHospital({ name, location, contact });
+                messageEl.textContent = `Hospital "${created.name}" registered in backend database!`;
+                messageEl.style.color = "#15803d";
+            } else {
+                const newId = Date.now();
+                hospitals.push({ id: newId, name, location, contact, is_sample: false });
+                localStorage.setItem("medichain_hospitals", JSON.stringify(hospitals));
+                messageEl.textContent = "Hospital registered successfully (stored in local browser fallback)!";
+                messageEl.style.color = "#b45309";
+            }
 
-        document.getElementById("hospitalMessage").textContent =
-            "Hospital registered successfully! (Stored in browser localStorage — demonstration only.)";
-
-        document.getElementById("hospitalForm").reset();
-
-        displayHospitals();
-
+            document.getElementById("hospitalForm").reset();
+            await loadHospitals();
+        } catch (err) {
+            messageEl.textContent = `Registration error: ${err.message}`;
+            messageEl.style.color = "#b91c1c";
+        }
     });
 
     // Delete a hospital
-    function deleteHospital(index) {
-
+    async function deleteHospital(hospitalId) {
         const confirmDelete = confirm("Are you sure you want to delete this hospital?");
+        if (!confirmDelete) return;
 
-        if (confirmDelete) {
-
-            hospitals.splice(index, 1);
-
-            const toSave = hospitals.filter(function(h) { return !h.sample; });
-            localStorage.setItem("medichain_hospitals", JSON.stringify(toSave));
-
-            displayHospitals();
-
+        const messageEl = document.getElementById("hospitalMessage");
+        try {
+            if (isConnectedToBackend && window.medichainApi) {
+                await window.medichainApi.deleteHospital(hospitalId);
+                messageEl.textContent = "Hospital deleted from backend database.";
+                messageEl.style.color = "#15803d";
+            } else {
+                hospitals = hospitals.filter(function(h) { return h.id !== hospitalId; });
+                localStorage.setItem("medichain_hospitals", JSON.stringify(hospitals));
+                messageEl.textContent = "Hospital deleted from local storage.";
+            }
+            await loadHospitals();
+        } catch (err) {
+            alert(`Error deleting hospital: ${err.message}`);
         }
-
     }
 
-    // Display hospitals when page loads
-    displayHospitals();
+    // Initialize on page load
+    loadHospitals();
 
 </script>
 
