@@ -1,9 +1,15 @@
 # Python
+__pycache__/
 _pycache_/
 *.py[cod]
 venv/
 .venv/
 .env
+.env.*
+!.env.example
+*.db
+*.sqlite
+*.sqlite3
 
 # Node
 node_modules/
@@ -21,3 +27,7 @@ Thumbs.db
 # Testing
 .pytest_cache/
 .coverage
+
+# Uploads
+Backend/uploads/
+uploads/
