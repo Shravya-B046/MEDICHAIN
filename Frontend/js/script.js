@@ -146,3 +146,41 @@ function openFeature(feature) {
         window.location.href = pages[feature];
     }
 }
+
+// Authentication & Session Management
+function getAuthUser() {
+    const raw = localStorage.getItem("medichain_auth") || sessionStorage.getItem("medichain_auth");
+    if (!raw) return null;
+    try {
+        return JSON.parse(raw);
+    } catch (e) {
+        return null;
+    }
+}
+
+function handleLogout() {
+    localStorage.removeItem("medichain_auth");
+    sessionStorage.removeItem("medichain_auth");
+    window.location.replace("login.html");
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    // Restore sidebar minimized/maximized state
+    const isCollapsed = localStorage.getItem("medichain_sidebar_collapsed") === "true";
+    if (isCollapsed) {
+        const sidebar = document.querySelector(".sidebar");
+        if (sidebar) {
+            sidebar.classList.add("collapsed");
+        }
+    }
+});
+
+// Sidebar Minimize / Maximize (using the topbar hamburger toggle)
+function toggleSidebar() {
+    const sidebar = document.querySelector(".sidebar");
+    if (!sidebar) return;
+
+    sidebar.classList.toggle("collapsed");
+    const isCollapsed = sidebar.classList.contains("collapsed");
+    localStorage.setItem("medichain_sidebar_collapsed", isCollapsed ? "true" : "false");
+}

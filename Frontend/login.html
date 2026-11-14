@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEDICHAIN | Sign In</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="auth-body">
+
+<div class="auth-wrapper">
+    <div class="auth-card">
+        
+        <!-- Header -->
+        <div class="auth-header">
+            <div class="logo">MEDI<span>CHAIN</span></div>
+            <h2>Healthcare Portal Login</h2>
+            <p id="portalDescription">Select your portal role to sign in</p>
+        </div>
+
+        <!-- Role Selector Buttons (Patient, Doctor, Hospital Admin) -->
+        <div class="role-selector-container">
+            <label class="role-label">Select Your Role:</label>
+            <div class="role-selector-grid">
+                <button 
+                    type="button" 
+                    class="role-tab active" 
+                    id="roleTabPatient" 
+                    onclick="selectRole('patient')"
+                >
+                    <span class="role-icon">👤</span>
+                    <span class="role-name">Patient</span>
+                </button>
+                <button 
+                    type="button" 
+                    class="role-tab" 
+                    id="roleTabDoctor" 
+                    onclick="selectRole('doctor')"
+                >
+                    <span class="role-icon">🩺</span>
+                    <span class="role-name">Doctor</span>
+                </button>
+                <button 
+                    type="button" 
+                    class="role-tab" 
+                    id="roleTabAdmin" 
+                    onclick="selectRole('admin')"
+                >
+                    <span class="role-icon">🏥</span>
+                    <span class="role-name">Hospital Admin</span>
+                </button>
+            </div>
+
+            <!-- Role Status -->
+            <div class="role-info-badge" id="roleInfoBadge">
+                <div class="role-info-text">
+                    <span id="badgeIcon">👤</span>
+                    <span id="badgeText">Accessing: <strong>Patient Portal</strong></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alert Notification Box -->
+        <div id="loginAlert" class="auth-alert" role="alert"></div>
+
+        <!-- Login Form -->
+        <form id="loginForm" class="auth-form" onsubmit="handleLogin(event)" novalidate>
+            
+            <!-- Email Input -->
+            <div class="form-group">
+                <label for="email" id="emailLabel">Email Address</label>
+                <div class="input-container">
+                    <span class="input-icon">✉️</span>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        placeholder="patient@medichain.org" 
+                        required 
+                        autocomplete="email"
+                    >
+                </div>
+            </div>
+
+            <!-- Password Input -->
+            <div class="form-group">
+                <label for="password">Password</label>
+                <div class="input-container">
+                    <span class="input-icon">🔒</span>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        placeholder="Enter your password" 
+                        required 
+                        autocomplete="current-password"
+                    >
+                    <button 
+                        type="button" 
+                        class="toggle-password" 
+                        id="togglePassword" 
+                        onclick="togglePasswordVisibility()" 
+                        aria-label="Toggle password visibility"
+                        title="Show/Hide password"
+                    >
+                        👁️
+                    </button>
+                </div>
+            </div>
+
+            <!-- Remember Me & Forgot Password -->
+            <div class="form-options">
+                <label class="remember-me">
+                    <input type="checkbox" id="rememberMe">
+                    <span>Remember me</span>
+                </label>
+                <a href="#" class="forgot-link" onclick="handleForgotPassword(event)">Forgot password?</a>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="submitBtn" class="btn-primary-auth">
+                <span id="btnText">Sign In as Patient</span>
+                <span id="btnSpinner" style="display: none;">⏳ Authenticating...</span>
+            </button>
+        </form>
+
+        <!-- Footer Links -->
+        <div class="auth-footer">
+            <p>Need an account? <a href="#" onclick="handleRegisterNotice(event)">Request Portal Access</a></p>
+            <div id="backToDashWrapper" style="display: none;">
+                <a href="index.html" class="back-home">← Return to Dashboard</a>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // Role definitions
+    const ROLES = {
+        patient: {
+            title: "Patient",
+            portal: "Patient Portal",
+            badgeIcon: "👤",
+            badgeText: "Accessing: <strong>Patient Portal</strong>",
+            description: "Access personal health records, AI Assistant & consultations",
+            placeholder: "patient@medichain.org",
+            btnText: "Sign In as Patient",
+            redirect: "index.html"
+        },
+        doctor: {
+            title: "Doctor",
+            portal: "Doctor & Clinician Portal",
+            badgeIcon: "🩺",
+            badgeText: "Accessing: <strong>Doctor & Clinician Portal</strong>",
+            description: "Access triage, ICU status & emergency patient requests",
+            placeholder: "doctor@hospital.org",
+            btnText: "Sign In as Doctor",
+            redirect: "resources.html"
+        },
+        admin: {
+            title: "Hospital Admin",
+            portal: "Hospital Admin Dashboard",
+            badgeIcon: "🏥",
+            badgeText: "Accessing: <strong>Hospital Admin Dashboard</strong>",
+            description: "Manage beds, medicine stock & facility operations",
+            placeholder: "admin@hospital.org",
+            btnText: "Sign In as Hospital Admin",
+            redirect: "admin.html"
+        }
+    };
+
+    let currentRole = "patient";
+
+    // Switch Role
+    function selectRole(roleKey) {
+        if (!ROLES[roleKey]) return;
+        currentRole = roleKey;
+        const config = ROLES[roleKey];
+
+        // Update active tab buttons
+        document.getElementById("roleTabPatient").classList.toggle("active", roleKey === "patient");
+        document.getElementById("roleTabDoctor").classList.toggle("active", roleKey === "doctor");
+        document.getElementById("roleTabAdmin").classList.toggle("active", roleKey === "admin");
+
+        // Update descriptions and badge
+        document.getElementById("portalDescription").textContent = config.description;
+        document.getElementById("badgeIcon").textContent = config.badgeIcon;
+        document.getElementById("badgeText").innerHTML = config.badgeText;
+        document.getElementById("email").placeholder = config.placeholder;
+        document.getElementById("btnText").textContent = config.btnText;
+        hideAlert();
+    }
+
+    // Password toggle
+    function togglePasswordVisibility() {
+        const passwordInput = document.getElementById("password");
+        const toggleBtn = document.getElementById("togglePassword");
+        
+        if (passwordInput.type === "password") {
+            passwordInput.type = "text";
+            toggleBtn.textContent = "🙈";
+        } else {
+            passwordInput.type = "password";
+            toggleBtn.textContent = "👁️";
+        }
+    }
+
+    // Alert helper
+    function showAlert(message, type) {
+        const alertBox = document.getElementById("loginAlert");
+        alertBox.textContent = message;
+        alertBox.className = `auth-alert ${type}`;
+        alertBox.style.display = "block";
+    }
+
+    function hideAlert() {
+        const alertBox = document.getElementById("loginAlert");
+        alertBox.style.display = "none";
+    }
+
+    // Login Form Handler
+    function handleLogin(event) {
+        event.preventDefault();
+        hideAlert();
+
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
+        const rememberMe = document.getElementById("rememberMe").checked;
+        const submitBtn = document.getElementById("submitBtn");
+        const btnText = document.getElementById("btnText");
+        const btnSpinner = document.getElementById("btnSpinner");
+        const config = ROLES[currentRole];
+
+        // Basic validation
+        if (!email) {
+            showAlert("Please enter your email address.", "error");
+            document.getElementById("email").focus();
+            return;
+        }
+
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailPattern.test(email)) {
+            showAlert("Please enter a valid email address.", "error");
+            document.getElementById("email").focus();
+            return;
+        }
+
+        if (!password) {
+            showAlert("Please enter your password.", "error");
+            document.getElementById("password").focus();
+            return;
+        }
+
+        if (password.length < 6) {
+            showAlert("Password must be at least 6 characters.", "error");
+            document.getElementById("password").focus();
+            return;
+        }
+
+        // Authentication process
+        btnText.style.display = "none";
+        btnSpinner.style.display = "inline";
+        submitBtn.disabled = true;
+
+        setTimeout(() => {
+            const userData = {
+                email: email,
+                role: config.title,
+                portal: config.portal,
+                roleKey: currentRole,
+                loginTime: new Date().toISOString()
+            };
+
+            if (rememberMe) {
+                localStorage.setItem("medichain_auth", JSON.stringify(userData));
+            } else {
+                sessionStorage.setItem("medichain_auth", JSON.stringify(userData));
+            }
+
+            showAlert(`Authenticated as ${config.title}! Redirecting to ${config.portal}...`, "success");
+
+            setTimeout(() => {
+                window.location.href = config.redirect;
+            }, 800);
+        }, 700);
+    }
+
+    function handleForgotPassword(e) {
+        e.preventDefault();
+        const email = document.getElementById("email").value.trim();
+        if (email) {
+            showAlert(`Password reset instructions have been sent to ${email}.`, "success");
+        } else {
+            showAlert("Please enter your email address to receive password reset instructions.", "error");
+            document.getElementById("email").focus();
+        }
+    }
+
+    function handleRegisterNotice(e) {
+        e.preventDefault();
+        const config = ROLES[currentRole];
+        showAlert(`Self-registration for ${config.title} requires hospital verification. Please contact the MEDICHAIN administrator.`, "error");
+    }
+
+    // Initialize with default role
+    document.addEventListener("DOMContentLoaded", () => {
+        selectRole("patient");
+        const hasAuth = localStorage.getItem("medichain_auth") || sessionStorage.getItem("medichain_auth");
+        if (hasAuth) {
+            const backWrap = document.getElementById("backToDashWrapper");
+            if (backWrap) backWrap.style.display = "block";
+        }
+    });
+</script>
+
+</body>
+</html>

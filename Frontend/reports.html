@@ -6,6 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Report Analysis | MEDICHAIN</title>
     <link rel="stylesheet" href="css/style.css">
+    <script>
+        (function() {
+            var auth = localStorage.getItem("medichain_auth") || sessionStorage.getItem("medichain_auth");
+            if (!auth) { window.location.replace("login.html"); }
+        })();
+    </script>
 </head>
 <body>
 
@@ -13,17 +19,22 @@
 
     <aside class="sidebar">
 
-        <div class="logo">MEDI<span>CHAIN</span></div>
+        <div class="sidebar-header">
+            <div class="logo">
+                <span class="logo-full">MEDI<span>CHAIN</span></span>
+                <span class="logo-short">M<span>C</span></span>
+            </div>
+        </div>
 
         <h4>MAIN MENU</h4>
 
         <ul>
-            <li><a href="index.html">🏠 Dashboard</a></li>
-            <li><a href="assistant.html">🩺 AI Health Assistant</a></li>
-            <li><a href="resources.html">🏥 Hospital Resources</a></li>
-            <li><a href="emergency.html">🚨 Emergency Coordination</a></li>
-            <li><a href="reports.html" class="active">📄 Report Analysis</a></li>
-            <li><a href="admin.html">⚙️ Admin Panel</a></li>
+            <li><a href="index.html" title="Dashboard"><span class="nav-icon">🏠</span><span class="nav-text"> Dashboard</span></a></li>
+            <li><a href="assistant.html" title="AI Health Assistant"><span class="nav-icon">🩺</span><span class="nav-text"> AI Health Assistant</span></a></li>
+            <li><a href="resources.html" title="Hospital Resources"><span class="nav-icon">🏥</span><span class="nav-text"> Hospital Resources</span></a></li>
+            <li><a href="emergency.html" title="Emergency Coordination"><span class="nav-icon">🚨</span><span class="nav-text"> Emergency Coordination</span></a></li>
+            <li><a href="reports.html" class="active" title="Report Analysis"><span class="nav-icon">📄</span><span class="nav-text"> Report Analysis</span></a></li>
+            <li><a href="admin.html" title="Admin Panel"><span class="nav-icon">⚙️</span><span class="nav-text"> Admin Panel</span></a></li>
         </ul>
 
     </aside>
@@ -31,8 +42,17 @@
     <main class="main-content">
 
         <header class="topbar">
-            <h2>AI Preliminary Report Analysis</h2>
-            <div class="profile">Report Center</div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button class="topbar-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
+                    ☰
+                </button>
+                <h2>AI Preliminary Report Analysis</h2>
+            </div>
+            <div>
+                <button class="profile logout-btn" onclick="handleLogout()" style="cursor: pointer; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; font-weight: bold;">
+                    🚪 Logout
+                </button>
+            </div>
         </header>
 
         <section class="welcome">
