@@ -1,0 +1,183 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Resources | MEDICHAIN</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+<div class="dashboard">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+
+        <div class="logo">MEDI<span>CHAIN</span></div>
+
+        <h4>MAIN MENU</h4>
+
+        <ul>
+            <li><a href="index.html">🏠 Dashboard</a></li>
+            <li><a href="assistant.html">🩺 AI Health Assistant</a></li>
+            <li><a href="resources.html" class="active">🏥 Hospital Resources</a></li>
+            <li><a href="emergency.html">🚨 Emergency Coordination</a></li>
+            <li><a href="reports.html">📄 Report Analysis</a></li>
+            <li><a href="admin.html">⚙️ Admin Panel</a></li>
+        </ul>
+
+    </aside>
+
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+        <header class="topbar">
+
+            <div>
+                <h2>Hospital Resource Dashboard</h2>
+                <p>Monitor and manage hospital resources.</p>
+            </div>
+
+            <div class="profile">👤 Admin</div>
+
+        </header>
+
+
+        <!-- Welcome -->
+        <section class="welcome">
+
+            <h2>Hospital Overview 🏥</h2>
+
+            <p>
+                Monitor bed availability, ICU capacity,
+                medical staff and emergency transportation
+                from one centralized dashboard.
+            </p>
+
+        </section>
+
+
+        <!-- Resource Statistics -->
+        <h3 class="section-title">Resource Availability</h3>
+
+        <section class="stats">
+
+            <div class="stat-card">
+                <h3>🛏️ Total Beds</h3>
+                <h1>250</h1>
+                <p>Registered beds</p>
+                <p class="demo-label">Demo data</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>🟢 Available Beds</h3>
+                <h1>186</h1>
+                <p>Currently available</p>
+                <p class="demo-label">Demo data</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>🔴 Occupied Beds</h3>
+                <h1>64</h1>
+                <p>Currently occupied</p>
+                <p class="demo-label">Demo data</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>🏥 ICU Beds</h3>
+                <h1>18</h1>
+                <p>Available ICU beds</p>
+                <p class="demo-label">Demo data</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>👨‍⚕️ Doctors On Duty</h3>
+                <h1>32</h1>
+                <p>Available medical staff</p>
+                <p class="demo-label">Demo data</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>🚑 Available Ambulances</h3>
+                <h1>08</h1>
+                <p>Ready for dispatch</p>
+                <p class="demo-label">Demo data</p>
+            </div>
+
+        </section>
+
+
+        <!-- Resource Details -->
+        <h3 class="section-title">Hospital Resource Details</h3>
+
+        <section class="resource-table">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Resource</th>
+                        <th>Total</th>
+                        <th>Available</th>
+                        <th>Occupied / In Use</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    <tr>
+                        <td>General Beds</td>
+                        <td>150</td>
+                        <td>120</td>
+                        <td>30</td>
+                        <td><span class="status available">Available</span></td>
+                    </tr>
+
+                    <tr>
+                        <td>ICU Beds</td>
+                        <td>40</td>
+                        <td>18</td>
+                        <td>22</td>
+                        <td><span class="status available">Available</span></td>
+                    </tr>
+
+                    <tr>
+                        <td>Doctors</td>
+                        <td>50</td>
+                        <td>32</td>
+                        <td>18</td>
+                        <td><span class="status available">Available</span></td>
+                    </tr>
+
+                    <tr>
+                        <td>Ambulances</td>
+                        <td>12</td>
+                        <td>8</td>
+                        <td>4</td>
+                        <td><span class="status available">Available</span></td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </section>
+
+
+        <p class="disclaimer">
+            Demo data only. Actual resource availability must be
+            supplied by connected hospital systems.
+        </p>
+
+    </main>
+
+</div>
+
+<script src="js/script.js"></script>
+
+</body>
+</html>
