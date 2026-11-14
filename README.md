@@ -12,11 +12,25 @@ MEDICHAIN is an AI-powered healthcare coordination platform designed to improve 
 
 # Technology Stack
 
-- Frontend: React.js, Tailwind CSS
-- Backend: Python, FastAPI
-- Database: PostgreSQL
-- AI Integration: Gemini API
+- Frontend: HTML5, CSS3, Vanilla JavaScript (no frameworks or build tools required)
+- Backend: Python, FastAPI (planned)
+- Database: PostgreSQL (planned)
+- AI Integration: Gemini API (planned)
 - Version Control: Git and GitHub
+
+# Running the Frontend
+
+The frontend requires no build step or package installation.
+Open `Frontend/index.html` directly in a web browser, or serve the `Frontend` directory with any static file server:
+
+```
+python -m http.server 8080
+```
+
+Then visit `http://localhost:8080` in your browser.
+
+> **Note:** All data displayed in the current frontend prototype is demonstration data only.
+> No live hospital data, real emergency dispatch, or AI analysis is performed until the backend is connected.
 
 # Disclaimer
 

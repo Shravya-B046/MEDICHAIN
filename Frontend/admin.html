@@ -1,0 +1,381 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEDICHAIN | Admin Panel</title>
+    <link rel="stylesheet" href="css/style.css">
+
+    <style>
+        .admin-form {
+            display: grid;
+            gap: 12px;
+            max-width: 600px;
+        }
+
+        .admin-form input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .admin-form button,
+        .delete-btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            background: #176b87;
+            color: white;
+            cursor: pointer;
+        }
+
+        .delete-btn {
+            background: #d9534f;
+        }
+
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .admin-table th,
+        .admin-table td {
+            padding: 13px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .admin-table th {
+            background: #eaf3f7;
+        }
+
+        .admin-section {
+            margin-top: 30px;
+        }
+
+        .admin-form label {
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="dashboard">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+        <div class="logo">MEDI<span>CHAIN</span></div>
+
+        <h4>ADMIN MENU</h4>
+
+        <ul>
+            <li><a href="index.html">🏠 Main Dashboard</a></li>
+            <li><a href="admin.html" class="active">⚙️ Admin Panel</a></li>
+            <li><a href="assistant.html">🩺 AI Health Assistant</a></li>
+            <li><a href="resources.html">🏥 Hospital Resources</a></li>
+            <li><a href="emergency.html">🚨 Emergency Coordination</a></li>
+            <li><a href="reports.html">📄 Report Analysis</a></li>
+        </ul>
+
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+        <header class="topbar">
+            <div>
+                <h2>Admin Panel</h2>
+                <p>Manage the MEDICHAIN healthcare platform.</p>
+            </div>
+
+            <div class="profile">👤 Administrator</div>
+        </header>
+
+        <!-- WELCOME -->
+        <section class="welcome">
+            <h2>Welcome, Admin! 👋</h2>
+            <p>Manage hospitals and monitor healthcare services from one place.</p>        </section>
+
+        <!-- STATISTICS -->
+        <h3 class="section-title">Platform Overview</h3>
+
+        <section class="stats">
+
+            <div class="stat-card">
+                <h3>🏥 Hospitals</h3>
+                <h1 id="hospitalCount">24</h1>
+                <p class="demo-label">Demo data</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>🛏️ Available Beds</h3>
+                <h1>186</h1>
+                <p class="demo-label">Demo data</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>🚑 Emergencies</h3>
+                <h1>08</h1>
+                <p class="demo-label">Demo data</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>👨‍⚕️ Doctors</h3>
+                <h1>32</h1>
+                <p class="demo-label">Demo data</p>
+            </div>
+
+        </section>
+
+        <!-- ADMINISTRATION -->
+        <h3 class="section-title">Platform Management</h3>
+
+        <section class="features">
+
+            <div class="feature-card">
+                <div class="icon">🏥</div>
+                <h3>Hospital Management</h3>
+                <p>Register and manage hospitals.</p>
+                <button onclick="document.getElementById('hospitalSection').scrollIntoView({behavior:'smooth'})">
+                    Manage Hospitals →
+                </button>
+            </div>
+
+            <div class="feature-card">
+                <div class="icon">🚨</div>
+                <h3>Emergency Management</h3>
+                <p>Monitor emergency requests.</p>
+                <button onclick="window.location.href='emergency.html'">
+                    View Emergencies →
+                </button>
+            </div>
+
+            <div class="feature-card">
+                <div class="icon">📄</div>
+                <h3>Report Analysis</h3>
+                <p>Access medical report analysis.</p>
+                <button onclick="window.location.href='reports.html'">
+                    View Reports →
+                </button>
+            </div>
+
+        </section>
+
+        <!-- HOSPITAL REGISTRATION -->
+        <div class="admin-section" id="hospitalSection">
+
+            <h3 class="section-title">Hospital Management</h3>
+
+            <section class="feature-card">
+
+                <h2>Register a New Hospital</h2>
+
+                <br>
+
+                <form class="admin-form" id="hospitalForm">
+
+                    <label for="hospitalName">Hospital Name</label>
+                    <input type="text" id="hospitalName"
+                           placeholder="Enter hospital name" required>
+
+                    <label for="hospitalLocation">Hospital Location</label>
+                    <input type="text" id="hospitalLocation"
+                           placeholder="Enter hospital location" required>
+
+                    <label for="hospitalContact">Contact Number</label>
+                    <input type="tel" id="hospitalContact"
+                           placeholder="Enter contact number"
+                           pattern="[0-9+ -]{7,15}" required>
+
+                    <button type="submit">+ Add Hospital</button>
+
+                </form>
+
+                <p id="hospitalMessage"></p>
+
+            </section>
+
+        </div>
+
+        <!-- HOSPITAL LIST -->
+        <div class="admin-section">
+
+            <h3 class="section-title">Registered Hospitals</h3>
+
+            <section class="feature-card">
+
+                <table class="admin-table">
+
+                    <thead>
+                        <tr>
+                            <th>Hospital Name</th>
+                            <th>Location</th>
+                            <th>Contact</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="hospitalList">
+
+                        <tr>
+                            <td>City Hospital</td>
+                            <td>Mangaluru</td>
+                            <td>9876543210</td>
+                            <td>Sample Hospital</td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </section>
+
+        </div>
+
+        <p class="disclaimer">
+            Demonstration Admin Panel. Hospital registrations are stored
+            temporarily in this browser's localStorage and are not connected to a live database.
+            This is prototype storage only — data will be lost if browser storage is cleared.
+        </p>
+
+    </main>
+
+</div>
+
+<script>
+
+    // Sample hospital shown when no localStorage data exists
+    const SAMPLE_HOSPITALS = [
+        { name: "City Hospital", location: "Mangaluru", contact: "9876543210", sample: true }
+    ];
+
+    // Load saved hospitals from browser storage (localStorage key: medichain_hospitals)
+    let hospitals = JSON.parse(localStorage.getItem("medichain_hospitals")) || null;
+
+    // First visit: pre-populate with sample data so the table is not blank
+    if (hospitals === null) {
+        hospitals = SAMPLE_HOSPITALS.slice();
+    }
+
+    function displayHospitals() {
+
+        const hospitalList = document.getElementById("hospitalList");
+        const hospitalCount = document.getElementById("hospitalCount");
+
+        hospitalList.innerHTML = "";
+
+        if (hospitals.length === 0) {
+            const emptyRow = document.createElement("tr");
+            const emptyCell = document.createElement("td");
+            emptyCell.colSpan = 4;
+            emptyCell.textContent = "No hospitals registered yet.";
+            emptyCell.style.color = "#94a3b8";
+            emptyCell.style.textAlign = "center";
+            emptyRow.appendChild(emptyCell);
+            hospitalList.appendChild(emptyRow);
+            hospitalCount.textContent = 24;
+            return;
+        }
+
+        hospitals.forEach(function(hospital, index) {
+
+            const row = document.createElement("tr");
+
+            [hospital.name, hospital.location, hospital.contact].forEach(function(value) {
+                const cell = document.createElement("td");
+                cell.textContent = value;
+                row.appendChild(cell);
+            });
+
+            const actionCell = document.createElement("td");
+
+            if (hospital.sample) {
+                // Sample row: show a label instead of a delete button
+                const label = document.createElement("span");
+                label.textContent = "Sample";
+                label.style.color = "#94a3b8";
+                label.style.fontSize = "12px";
+                actionCell.appendChild(label);
+            } else {
+                const deleteButton = document.createElement("button");
+                deleteButton.textContent = "Delete";
+                deleteButton.className = "delete-btn";
+                deleteButton.onclick = function() {
+                    deleteHospital(index);
+                };
+                actionCell.appendChild(deleteButton);
+            }
+
+            row.appendChild(actionCell);
+            hospitalList.appendChild(row);
+
+        });
+
+        // Count: 24 base (demo) + user-added hospitals (excluding sample row)
+        const userAdded = hospitals.filter(function(h) { return !h.sample; }).length;
+        hospitalCount.textContent = 24 + userAdded;
+    }
+
+    // Add a new hospital
+    document.getElementById("hospitalForm").addEventListener("submit", function(event) {
+
+        event.preventDefault();
+
+        const name = document.getElementById("hospitalName").value.trim();
+        const location = document.getElementById("hospitalLocation").value.trim();
+        const contact = document.getElementById("hospitalContact").value.trim();
+
+        if (!name || !location || !contact) {
+            return;
+        }
+
+        hospitals.push({
+            name: name,
+            location: location,
+            contact: contact,
+            sample: false
+        });
+
+        // Persist only non-sample hospitals to localStorage
+        const toSave = hospitals.filter(function(h) { return !h.sample; });
+        localStorage.setItem("medichain_hospitals", JSON.stringify(toSave));
+
+        document.getElementById("hospitalMessage").textContent =
+            "Hospital registered successfully! (Stored in browser localStorage — demonstration only.)";
+
+        document.getElementById("hospitalForm").reset();
+
+        displayHospitals();
+
+    });
+
+    // Delete a hospital
+    function deleteHospital(index) {
+
+        const confirmDelete = confirm("Are you sure you want to delete this hospital?");
+
+        if (confirmDelete) {
+
+            hospitals.splice(index, 1);
+
+            const toSave = hospitals.filter(function(h) { return !h.sample; });
+            localStorage.setItem("medichain_hospitals", JSON.stringify(toSave));
+
+            displayHospitals();
+
+        }
+
+    }
+
+    // Display hospitals when page loads
+    displayHospitals();
+
+</script>
+
+</body>
+</html>

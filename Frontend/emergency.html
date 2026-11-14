@@ -1,0 +1,135 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Coordination | MEDICHAIN</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="dashboard">
+
+    <aside class="sidebar">
+
+        <div class="logo">MEDI<span>CHAIN</span></div>
+
+        <h4>MAIN MENU</h4>
+
+        <ul>
+            <li><a href="index.html">🏠 Dashboard</a></li>
+            <li><a href="assistant.html">🩺 AI Health Assistant</a></li>
+            <li><a href="resources.html">🏥 Hospital Resources</a></li>
+            <li><a href="emergency.html" class="active">🚨 Emergency Coordination</a></li>
+            <li><a href="reports.html">📄 Report Analysis</a></li>
+            <li><a href="admin.html">⚙️ Admin Panel</a></li>
+        </ul>
+
+    </aside>
+
+    <main class="main-content">
+
+        <header class="topbar">
+            <h2>Emergency Coordination</h2>
+            <div class="profile">Emergency Control Center</div>
+        </header>
+        <section class="welcome">
+            <h1>Emergency Response Center</h1>
+            <p>Monitor emergency requests and coordinate hospital responses.</p>
+        </section>
+
+        <h2 class="section-title">Emergency Overview</h2>
+
+        <section class="stats">
+            <div class="stat-card">
+                <h3>08</h3>
+                <p>Total Emergencies</p>
+                <p class="demo-label">Demo data</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>03</h3>
+                <p>Active Emergencies</p>
+                <p class="demo-label">Demo data</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>02</h3>
+                <p>Ambulances Dispatched</p>
+                <p class="demo-label">Demo data</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>05</h3>
+                <p>Resolved Cases</p>
+                <p class="demo-label">Demo data</p>
+            </div>
+        </section>
+
+        <h2 class="section-title">Emergency Requests</h2>
+
+        <section class="resource-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Case ID</th>
+                        <th>Emergency Type</th>
+                        <th>Location</th>
+                        <th>Hospital</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <tr>
+                        <td>EMG001</td>
+                        <td>Road Accident</td>
+                        <td>Mangaluru</td>
+                        <td>City Hospital</td>
+                        <td><span class="status occupied">Critical</span></td>
+                        <td><span class="status warning">In Progress</span></td>
+                    </tr>
+
+                    <tr>
+                        <td>EMG002</td>
+                        <td>Cardiac Emergency</td>
+                        <td>Bantwal</td>
+                        <td>General Hospital</td>
+                        <td><span class="status occupied">Critical</span></td>
+                        <td><span class="status warning">Ambulance Sent</span></td>
+                    </tr>
+
+                    <tr>
+                        <td>EMG003</td>
+                        <td>Medical Emergency</td>
+                        <td>Udupi</td>
+                        <td>District Hospital</td>
+                        <td><span class="status warning">Medium</span></td>
+                        <td><span class="status available">Resolved</span></td>
+                    </tr>
+
+                    <tr>
+                        <td>EMG004</td>
+                        <td>Accident</td>
+                        <td>Surathkal</td>
+                        <td>City Hospital</td>
+                        <td><span class="status warning">High</span></td>
+                        <td><span class="status warning">In Progress</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <p class="disclaimer">
+            Demonstration data only. This page is not connected to live emergency services.
+            For a real emergency in India, call 112.
+        </p>
+
+    </main>
+</div>
+
+<script src="js/script.js"></script>
+</body>
+</html>

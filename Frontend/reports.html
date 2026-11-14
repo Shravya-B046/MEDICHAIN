@@ -1,0 +1,83 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Report Analysis | MEDICHAIN</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="dashboard">
+
+    <aside class="sidebar">
+
+        <div class="logo">MEDI<span>CHAIN</span></div>
+
+        <h4>MAIN MENU</h4>
+
+        <ul>
+            <li><a href="index.html">🏠 Dashboard</a></li>
+            <li><a href="assistant.html">🩺 AI Health Assistant</a></li>
+            <li><a href="resources.html">🏥 Hospital Resources</a></li>
+            <li><a href="emergency.html">🚨 Emergency Coordination</a></li>
+            <li><a href="reports.html" class="active">📄 Report Analysis</a></li>
+            <li><a href="admin.html">⚙️ Admin Panel</a></li>
+        </ul>
+
+    </aside>
+
+    <main class="main-content">
+
+        <header class="topbar">
+            <h2>AI Preliminary Report Analysis</h2>
+            <div class="profile">Report Center</div>
+        </header>
+
+        <section class="welcome">
+            <h1>Medical Report Analysis</h1>
+            <p>Upload a medical report to prepare a preliminary summary for review.</p>
+        </section>
+
+        <section class="feature-card">
+            <h2>Upload Medical Report</h2>
+            <p>Select a report from your computer (PDF, JPG or PNG).</p>
+
+            <br>
+
+            <input
+                type="file"
+                id="reportFile"
+                accept=".pdf,.jpg,.jpeg,.png"
+            >
+
+            <br><br>
+
+            <button type="button" onclick="analyzeReport()">
+                Analyze Report
+            </button>
+
+            <p id="fileMessage"></p>
+        </section>
+
+        <br>
+
+        <section class="feature-card">
+            <h2>Preliminary Analysis</h2>
+            <div id="analysisResult">
+                <p>Your preliminary report summary will appear here.</p>
+            </div>
+        </section>
+
+        <p class="disclaimer">
+            Demonstration interface only. No real medical AI analysis is performed.
+            This tool does not diagnose conditions or replace a qualified medical professional.
+        </p>
+
+    </main>
+</div>
+
+<script src="js/script.js"></script>
+</body>
+</html>
