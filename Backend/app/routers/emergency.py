@@ -47,12 +47,13 @@ def read_emergency(case_id: str, db: Session = Depends(get_db)):
 @router.post("", response_model=EmergencyResponse, status_code=status.HTTP_201_CREATED, summary="Log a new emergency request")
 def log_emergency(case_in: EmergencyCreate, db: Session = Depends(get_db)):
     """Record a new emergency case to coordinate with hospitals."""
-    existing = get_emergency_by_case_id(db, case_id=case_in.case_id)
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Case ID '{case_in.case_id}' already exists.",
-        )
+    if case_in.case_id and case_in.case_id.strip():
+        existing = get_emergency_by_case_id(db, case_id=case_in.case_id.strip())
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Case ID '{case_in.case_id}' already exists.",
+            )
     return create_emergency_case(db, case_in=case_in)
 
 

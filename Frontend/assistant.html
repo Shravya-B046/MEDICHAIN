@@ -78,24 +78,28 @@
         <!-- Chat Section -->
         <section class="chat-container">
 
-            <div class="chat-header">
+            <div class="chat-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <h3>Health Assistant</h3>
-                    <p>● Online</p>
+                    <h3>Clinical Health Assistant</h3>
+                    <p id="assistantStatusText" style="color: #15803d; font-weight: 500;">● Online</p>
                 </div>
+                <button onclick="clearChat()" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                    🧹 Clear Chat
+                </button>
             </div>
 
 
             <div class="chat-messages" id="chatMessages">
 
                 <div class="message bot-message">
-                    Hello! 👋 Welcome to MEDICHAIN.
-
-                    I'm your AI Health Assistant. You can ask me
-                    general health questions or learn about common
-                    symptoms.
-
-                    How can I assist you today?
+                    <p><strong>Hello! 👋 Welcome to MEDICHAIN Clinical AI.</strong></p>
+                    <p>I am your digital healthcare assistant, grounded in WHO, MedlinePlus, and clinical evidence. You can ask me:</p>
+                    <ul class="md-list">
+                        <li>General health, lifestyle & preventive care questions</li>
+                        <li>Symptom explanations and home precautions</li>
+                        <li>Detailed <strong>medicine information</strong> (uses, mechanism, side effects, interactions & food timing)</li>
+                    </ul>
+                    <p style="font-size: 12px; color: #64748b; margin-top: 6px;">How can I assist your health inquiry today?</p>
                 </div>
 
             </div>
@@ -104,16 +108,20 @@
             <!-- Suggested Questions -->
             <div class="suggestions">
 
-                <button onclick="askQuestion('What are common symptoms of dehydration?')">
-                    Symptoms of dehydration
+                <button onclick="askQuestion('What is Paracetamol used for and what are its precautions?')">
+                    💊 Paracetamol Info
                 </button>
 
-                <button onclick="askQuestion('How can I maintain a healthy diet?')">
-                    Healthy diet tips
+                <button onclick="askQuestion('What are the common symptoms of dehydration?')">
+                    💧 Dehydration Symptoms
                 </button>
 
-                <button onclick="askQuestion('Why is sleep important?')">
-                    Importance of sleep
+                <button onclick="askQuestion('What is Metformin prescribed for and when should it be taken?')">
+                    🩺 Metformin Guidance
+                </button>
+
+                <button onclick="askQuestion('How can I maintain a healthy balanced diet?')">
+                    🥗 Healthy Diet Guidelines
                 </button>
 
             </div>
@@ -125,7 +133,8 @@
                 <input
                     type="text"
                     id="userInput"
-                    placeholder="Type your health question..."
+                    placeholder="Type your health or medication question (e.g., 'What is Ibuprofen used for?')..."
+                    onkeydown="if(event.key === 'Enter') sendMessage()"
                 >
 
                 <button onclick="sendMessage()">Send ➤</button>
@@ -133,9 +142,8 @@
             </div>
 
             <p class="disclaimer">
-                ⚠️ This assistant provides general health information
-                and is not a substitute for professional medical advice.
-                For emergencies, contact local emergency services.
+                ⚠️ <strong>Clinical Notice:</strong> MEDICHAIN provides AI-assisted health information and preliminary explanations.
+                It does not replace professional medical diagnosis, treatment or consultation. For acute medical emergencies, seek immediate emergency care.
             </p>
 
         </section>

@@ -88,6 +88,61 @@
             </div>
         </section>
 
+        <!-- Log New Emergency Request Section -->
+        <h2 class="section-title">Initiate Emergency Coordination</h2>
+
+        <section class="feature-card" style="margin-bottom: 25px;">
+            <h3>Request Emergency Coordination</h3>
+            <p>Submit an emergency incident to coordinate response with nearest connected medical facilities.</p>
+            <p style="font-size: 12px; color: #b91c1c; margin-top: 4px;">⚠️ Prototype demo only. For real medical emergencies, dial 112 immediately.</p>
+
+            <form id="emergencyForm" onsubmit="handleEmergencySubmit(event)" style="margin-top: 15px; display: grid; gap: 12px; max-width: 650px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label for="emgType" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">Emergency Type *</label>
+                        <select id="emgType" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                            <option value="">Select type...</option>
+                            <option value="Road Accident">Road Accident</option>
+                            <option value="Cardiac Emergency">Cardiac Emergency</option>
+                            <option value="Respiratory Distress">Respiratory Distress</option>
+                            <option value="Stroke Symptoms">Stroke Symptoms</option>
+                            <option value="Trauma / Fall">Trauma / Fall</option>
+                            <option value="General Acute Emergency">General Acute Emergency</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="emgPriority" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">Triage Priority *</label>
+                        <select id="emgPriority" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                            <option value="Critical">Critical (Immediate)</option>
+                            <option value="High">High (Urgent)</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label for="emgLocation" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">Incident Location *</label>
+                        <input type="text" id="emgLocation" placeholder="e.g. Kadri Toll Gate, Mangaluru" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                    </div>
+
+                    <div>
+                        <label for="emgHospital" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">Destination / Nearby Hospital *</label>
+                        <input type="text" id="emgHospital" placeholder="e.g. City Hospital" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                    </div>
+                </div>
+
+                <div style="margin-top: 6px; display: flex; align-items: center; gap: 12px;">
+                    <button type="submit" id="emgSubmitBtn" style="padding: 10px 18px; background: #dc2626; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                        🚨 Submit Emergency Request
+                    </button>
+                    <span id="emgFormStatus" style="font-size: 13px; font-weight: 500;"></span>
+                </div>
+            </form>
+        </section>
+
         <h2 class="section-title">Emergency Requests</h2>
 
         <section class="resource-table">
@@ -100,6 +155,7 @@
                         <th>Hospital</th>
                         <th>Priority</th>
                         <th>Status</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
 
@@ -111,33 +167,7 @@
                         <td>City Hospital</td>
                         <td><span class="status occupied">Critical</span></td>
                         <td><span class="status warning">In Progress</span></td>
-                    </tr>
-
-                    <tr>
-                        <td>EMG002</td>
-                        <td>Cardiac Emergency</td>
-                        <td>Bantwal</td>
-                        <td>General Hospital</td>
-                        <td><span class="status occupied">Critical</span></td>
-                        <td><span class="status warning">Ambulance Sent</span></td>
-                    </tr>
-
-                    <tr>
-                        <td>EMG003</td>
-                        <td>Medical Emergency</td>
-                        <td>Udupi</td>
-                        <td>District Hospital</td>
-                        <td><span class="status warning">Medium</span></td>
-                        <td><span class="status available">Resolved</span></td>
-                    </tr>
-
-                    <tr>
-                        <td>EMG004</td>
-                        <td>Accident</td>
-                        <td>Surathkal</td>
-                        <td>City Hospital</td>
-                        <td><span class="status warning">High</span></td>
-                        <td><span class="status warning">In Progress</span></td>
+                        <td><button class="status warning" onclick="updateCaseStatus('EMG001', 'Ambulance Sent')">Dispatch</button></td>
                     </tr>
                 </tbody>
             </table>

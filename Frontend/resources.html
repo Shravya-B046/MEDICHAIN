@@ -134,6 +134,38 @@
         <!-- Resource Details -->
         <h3 class="section-title">Hospital Resource Details</h3>
 
+        <!-- Resource Controls: Search & Category Filter -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; gap: 10px; align-items: center; flex: 1; max-width: 550px;">
+                <input
+                    type="text"
+                    id="resourceSearchInput"
+                    placeholder="🔍 Search resources (e.g. ICU, Ventilator, Antibiotics)..."
+                    oninput="filterResources()"
+                    style="flex: 1; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;"
+                >
+                <select
+                    id="resourceCategoryFilter"
+                    onchange="filterResources()"
+                    style="padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; background: white;"
+                >
+                    <option value="all">All Categories</option>
+                    <option value="beds">Beds (General & ICU)</option>
+                    <option value="staff">Staff & Ambulances</option>
+                    <option value="equipment">Medical Equipment</option>
+                    <option value="medicine">Medicine & Supplies</option>
+                </select>
+            </div>
+            <div>
+                <button
+                    onclick="loadResourceDashboard()"
+                    style="padding: 9px 15px; background: #0e7490; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;"
+                >
+                    🔄 Refresh Data
+                </button>
+            </div>
+        </div>
+
         <section class="resource-table">
 
             <table>

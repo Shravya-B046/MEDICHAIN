@@ -18,6 +18,8 @@ class ReportAnalysisResponse(BaseModel):
     status: str = "Completed"
     summary_title: str
     key_observations: List[str]
+    extracted_findings: List[str] = Field(default_factory=list)
+    extraction_method: str = "pdf_text_parser"
     suggested_questions_for_doctor: List[str]
     disclaimer: str = (
         "Preliminary summary generated for educational guidance only. "

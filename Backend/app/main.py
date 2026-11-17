@@ -12,7 +12,7 @@ if str(_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKEND_DIR))
 
 from app.config import settings
-from app.database import Base, engine, SessionLocal
+from app.database import Base, engine, SessionLocal, get_active_database_info
 from app.routers import (
     assistant_router,
     emergency_router,
@@ -68,11 +68,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Configure CORS Middleware for Frontend Access
+# Configure CORS Middleware for Frontend Access (supports localhost, Vercel, Netlify, Render, and custom domains)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list or ["*"],
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|.*\.vercel\.app|.*\.netlify\.app|.*\.onrender\.com)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -112,9 +112,14 @@ def root_status():
 @app.get("/api/health", tags=["Health"])
 def health_check():
     """Health-check endpoint for container orchestration and uptime monitoring."""
+    db_info = get_active_database_info()
+    gemini_configured = bool(settings.GEMINI_API_KEY and settings.GEMINI_API_KEY.strip())
     return {
         "status": "healthy",
-        "database": "operational",
+        "database": db_info["engine"],
+        "is_sqlite_fallback": db_info["is_fallback_sqlite"],
+        "gemini_ai_configured": gemini_configured,
         "environment": settings.ENVIRONMENT,
+        "version": settings.PROJECT_VERSION,
     }
 

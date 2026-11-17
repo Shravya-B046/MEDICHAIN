@@ -56,13 +56,23 @@ def get_emergency_by_case_id(db: Session, case_id: str) -> Optional[Emergency]:
 
 def create_emergency_case(db: Session, case_in: EmergencyCreate) -> Emergency:
     """Create a new emergency case."""
+    case_id = case_in.case_id
+    if not case_id or not case_id.strip():
+        # Auto-generate case ID e.g. EMG005
+        count = db.query(Emergency).count()
+        next_num = count + 1
+        case_id = f"EMG{next_num:03d}"
+        while get_emergency_by_case_id(db, case_id):
+            next_num += 1
+            case_id = f"EMG{next_num:03d}"
+
     emergency = Emergency(
-        case_id=case_in.case_id,
-        emergency_type=case_in.emergency_type,
-        location=case_in.location,
-        hospital_name=case_in.hospital_name,
-        priority=case_in.priority,
-        status=case_in.status,
+        case_id=case_id,
+        emergency_type=case_in.emergency_type.strip(),
+        location=case_in.location.strip(),
+        hospital_name=case_in.hospital_name.strip(),
+        priority=case_in.priority.strip() if case_in.priority else "Critical",
+        status=case_in.status.strip() if case_in.status else "In Progress",
     )
     db.add(emergency)
     db.commit()

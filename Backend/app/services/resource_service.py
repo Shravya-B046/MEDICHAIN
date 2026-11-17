@@ -9,6 +9,10 @@ DEFAULT_RESOURCE_SEEDS = [
     {"resource_type": "ICU Beds", "total": 40, "available": 18, "occupied": 22, "status": "Available"},
     {"resource_type": "Doctors", "total": 50, "available": 32, "occupied": 18, "status": "Available"},
     {"resource_type": "Ambulances", "total": 12, "available": 8, "occupied": 4, "status": "Available"},
+    {"resource_type": "Mechanical Ventilators", "total": 25, "available": 9, "occupied": 16, "status": "Warning"},
+    {"resource_type": "Oxygen Cylinders", "total": 180, "available": 142, "occupied": 38, "status": "Available"},
+    {"resource_type": "Emergency Antibiotics", "total": 500, "available": 395, "occupied": 105, "status": "Available"},
+    {"resource_type": "IV Fluids & Saline", "total": 650, "available": 480, "occupied": 170, "status": "Available"},
 ]
 
 
@@ -75,9 +79,13 @@ def update_resource(db: Session, resource_id: int, update_in: ResourceUpdate) ->
 
 def seed_default_resources(db: Session) -> None:
     """Seed default synthetic demonstration resources."""
-    if db.query(Resource).count() == 0:
-        for seed_data in DEFAULT_RESOURCE_SEEDS:
+    existing_types = {r.resource_type for r in db.query(Resource).all()}
+    added = False
+    for seed_data in DEFAULT_RESOURCE_SEEDS:
+        if seed_data["resource_type"] not in existing_types:
             res = Resource(**seed_data)
             db.add(res)
+            added = True
+    if added:
         db.commit()
 

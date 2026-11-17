@@ -12,6 +12,12 @@ except ImportError:
 # Base directory for the backend
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(BACKEND_DIR / ".env")
+except ImportError:
+    pass
+
 class Settings(BaseSettings):
     """MEDICHAIN backend application configuration settings."""
     PROJECT_NAME: str = "MEDICHAIN API"
@@ -29,9 +35,9 @@ class Settings(BaseSettings):
     # Google Gemini AI API Configuration
     GEMINI_API_KEY: str = Field(default="")
 
-    # CORS Configuration
+    # CORS Configuration (comma-separated list of allowed origins or wildcard '*')
     CORS_ORIGINS: str = Field(
-        default="http://localhost:8081,http://127.0.0.1:8081,http://localhost:8080,http://127.0.0.1:8080,http://localhost:5500,http://127.0.0.1:5500,http://localhost:3000"
+        default="http://localhost:8081,http://127.0.0.1:8081,http://localhost:8080,http://127.0.0.1:8080,http://localhost:5500,http://127.0.0.1:5500,http://localhost:3000,https://medichain-frontend.vercel.app,https://medichain.netlify.app"
     )
 
     # Temporary File Upload Configuration

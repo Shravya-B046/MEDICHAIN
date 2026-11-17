@@ -1,7 +1,9 @@
+import logging
 import os
+import re
 import uuid
 from pathlib import Path
-from typing import Tuple
+from typing import List, Tuple
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
@@ -9,6 +11,8 @@ from app.config import settings
 from app.models.report import ReportAudit
 from app.schemas.report import ReportAnalysisResponse
 from app.services.ai_service import ai_service
+
+logger = logging.getLogger(__name__)
 
 
 def validate_upload(file: UploadFile) -> Tuple[str, str]:
@@ -33,6 +37,66 @@ def validate_upload(file: UploadFile) -> Tuple[str, str]:
         )
 
     return filename, ext
+
+
+def extract_pdf_data(pdf_path: Path) -> Tuple[str, List[str]]:
+    """
+    Extracts text from a PDF file using pypdf and identifies clinical findings.
+    Returns: (full_extracted_text, list_of_detected_findings)
+    """
+    extracted_text = ""
+    findings = []
+
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(str(pdf_path))
+        page_texts = []
+        for page in reader.pages:
+            text = page.extract_text()
+            if text:
+                page_texts.append(text)
+
+        extracted_text = "\n".join(page_texts).strip()
+
+        if extracted_text:
+            # Look for lines containing lab parameters, numerical values, or reference ranges
+            # Common medical lab metrics
+            markers = [
+                r"hemoglobin|hgb",
+                r"wbc|white blood cell",
+                r"rbc|red blood cell",
+                r"platelet",
+                r"glucose|sugar",
+                r"cholesterol",
+                r"creatinine",
+                r"blood pressure|bp",
+                r"triglycerides",
+                r"bilirubin",
+                r"urea|bun",
+                r"sodium|potassium",
+                r"calcium",
+                r"sgot|sgpt|alt|ast",
+            ]
+            combined_pattern = re.compile("|".join(markers), re.IGNORECASE)
+
+            lines = extracted_text.splitlines()
+            for line in lines:
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                if combined_pattern.search(stripped):
+                    # Clean up multiple whitespaces
+                    clean_line = re.sub(r"\s+", " ", stripped)
+                    if len(clean_line) <= 120 and clean_line not in findings:
+                        findings.append(clean_line)
+
+            # Limit to top 8 findings for clear presentation
+            findings = findings[:8]
+
+    except Exception as e:
+        logger.warning(f"pypdf extraction error on {pdf_path}: {e}")
+
+    return extracted_text, findings
 
 
 async def process_report_upload(file: UploadFile, db: Session) -> ReportAnalysisResponse:
@@ -67,11 +131,18 @@ async def process_report_upload(file: UploadFile, db: Session) -> ReportAnalysis
         file_size_kb = round(total_bytes / 1024, 2)
         content_type = file.content_type or f"application/{ext}"
 
+        extracted_text = ""
+        findings = []
+        if ext == "pdf":
+            extracted_text, findings = extract_pdf_data(temp_path)
+
         # Perform AI analysis
         analysis_data = ai_service.analyze_medical_document(
             filename=filename,
             file_size_kb=file_size_kb,
             content_type=content_type,
+            extracted_text=extracted_text,
+            extracted_findings=findings,
         )
 
         # Record privacy-compliant audit entry (no raw medical content stored)
@@ -92,6 +163,8 @@ async def process_report_upload(file: UploadFile, db: Session) -> ReportAnalysis
             status="Completed",
             summary_title=analysis_data["summary_title"],
             key_observations=analysis_data["key_observations"],
+            extracted_findings=analysis_data.get("extracted_findings", []),
+            extraction_method=analysis_data.get("extraction_method", "pypdf_parser"),
             suggested_questions_for_doctor=analysis_data["suggested_questions_for_doctor"],
             temporary_file_cleaned=True,
         )
@@ -103,4 +176,3 @@ async def process_report_upload(file: UploadFile, db: Session) -> ReportAnalysis
                 os.remove(temp_path)
             except OSError:
                 pass
-

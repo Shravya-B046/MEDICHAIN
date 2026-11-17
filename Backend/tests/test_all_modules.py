@@ -88,7 +88,31 @@ def test_ai_health_assistant_dehydration():
     assert "reply" in data
     assert "dehydration" in data["reply"].lower() or "fluids" in data["reply"].lower()
     assert "disclaimer" in data
-    assert "not a substitute" in data["disclaimer"].lower()
+    assert "not replace" in data["disclaimer"].lower() or "not a substitute" in data["disclaimer"].lower()
+
+
+def test_ai_health_assistant_medicine_info():
+    """Verify medicine question produces structured 8-part guidance and medicine flag."""
+    response = client.post(
+        "/api/assistant/chat",
+        json={"message": "What is Paracetamol used for?"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data.get("is_medicine_query") is True
+    assert "paracetamol" in data["reply"].lower() or "acetaminophen" in data["reply"].lower()
+
+
+def test_ai_health_assistant_emergency_fastpath():
+    """Verify acute red-flag symptoms trigger immediate emergency care banner."""
+    response = client.post(
+        "/api/assistant/chat",
+        json={"message": "I have crushing chest pain and cannot breathe"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data.get("is_emergency") is True
+    assert "emergency" in data["reply"].lower()
 
 
 def test_ai_health_assistant_general():
@@ -100,7 +124,7 @@ def test_ai_health_assistant_general():
     assert response.status_code == 200
     data = response.json()
     assert len(data["reply"]) > 20
-    assert data["source"] in ["synthetic_demo", "gemini_api"]
+    assert data["source"] in ["synthetic_demo", "gemini_api", "verified_medical_kb"]
 
 
 # =====================================================================
@@ -112,10 +136,12 @@ def test_resource_list_and_summary():
     res_list = client.get("/api/resources")
     assert res_list.status_code == 200
     items = res_list.json()
-    assert len(items) >= 4
+    assert len(items) >= 8
     types = [i["resource_type"] for i in items]
     assert "General Beds" in types
     assert "ICU Beds" in types
+    assert "Mechanical Ventilators" in types
+    assert "Oxygen Cylinders" in types
 
     # Summary endpoint
     res_summary = client.get("/api/resources/summary")
@@ -182,6 +208,21 @@ def test_emergency_create_and_status_patch():
     )
     assert patch_resp.status_code == 200
     assert patch_resp.json()["status"] == "Resolved"
+
+
+def test_emergency_auto_generate_case_id():
+    """Verify that case_id is auto-generated if omitted from frontend form."""
+    case_data = {
+        "emergency_type": "Severe Allergic Reaction",
+        "location": "Surathkal Beach",
+        "hospital_name": "City Hospital",
+        "priority": "High",
+    }
+    resp = client.post("/api/emergency", json=case_data)
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["case_id"].startswith("EMG")
+    assert data["emergency_type"] == "Severe Allergic Reaction"
 
 
 # =====================================================================

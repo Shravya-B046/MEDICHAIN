@@ -1,18 +1,24 @@
 /**
  * MEDICHAIN Shared API Client
  * Connects frontend vanilla JavaScript modules with the FastAPI backend.
- * Compatible with all modern browsers and local server origins.
+ * Provides resilient HTTP communication, timeouts, error normalization, and multi-alias globals.
  */
 
 (function(global) {
     "use strict";
 
-    // Dynamic base URL resolving to backend port 8000
+    // Dynamic base URL resolving to backend (Supports Localhost, Render, Railway, or custom cloud)
     var API_BASE_URL = (function() {
-        if (typeof window !== "undefined" && window.location) {
-            // Match host to prevent IPv4/IPv6 hostname cross-origin mismatch
-            if (window.location.hostname === "localhost") {
-                return "http://localhost:8000";
+        if (typeof window !== "undefined") {
+            if (window.MEDICHAIN_API_BASE) return window.MEDICHAIN_API_BASE;
+            var storedUrl = localStorage.getItem("medichain_api_url");
+            if (storedUrl) return storedUrl;
+            if (window.location) {
+                // If on local development
+                if (window.location.hostname === "localhost") return "http://localhost:8000";
+                if (window.location.hostname === "127.0.0.1") return "http://127.0.0.1:8000";
+                // Production cloud backend (can be overridden via window.MEDICHAIN_API_BASE)
+                return "https://medichain-backend.onrender.com";
             }
         }
         return "http://127.0.0.1:8000";
@@ -20,9 +26,10 @@
 
     var MedichainApiClient = {
         baseUrl: API_BASE_URL,
+        timeoutMs: 15000,
 
         /**
-         * Generic helper for JSON and multipart HTTP requests with error handling
+         * Generic helper for JSON and multipart HTTP requests with timeout and error normalization
          */
         request: async function(endpoint, options) {
             options = options || {};
@@ -38,12 +45,25 @@
                     : JSON.stringify(options.body);
             }
 
+            var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+            var timeoutId = null;
+            if (controller) {
+                timeoutId = setTimeout(function() {
+                    controller.abort();
+                }, options.timeoutMs || this.timeoutMs);
+            }
+
             try {
-                var response = await fetch(url, {
+                var fetchOptions = {
                     method: options.method || "GET",
                     headers: headers,
-                    body: options.body
-                });
+                    body: options.body,
+                    signal: controller ? controller.signal : undefined
+                };
+
+                var response = await fetch(url, fetchOptions);
+
+                if (timeoutId) clearTimeout(timeoutId);
 
                 if (!response.ok) {
                     var errorMessage = "HTTP " + response.status + ": " + response.statusText;
@@ -60,6 +80,20 @@
 
                 return await response.json();
             } catch (error) {
+                if (timeoutId) clearTimeout(timeoutId);
+
+                if (error.name === "AbortError") {
+                    throw new Error("Request to " + endpoint + " timed out after " + (options.timeoutMs || this.timeoutMs) + "ms.");
+                }
+
+                // Friendly connection notice when server is unreachable or CORS blocks
+                if (error instanceof TypeError && error.message.toLowerCase().includes("fetch")) {
+                    throw new Error(
+                        "Cannot connect to MEDICHAIN backend service at " + this.baseUrl + 
+                        ". Please verify the server is active on port 8000."
+                    );
+                }
+
                 console.error("[MEDICHAIN API Error] " + endpoint + ":", error);
                 throw error;
             }
@@ -70,11 +104,15 @@
             return this.request("/api/health");
         },
 
-        // Module 1: AI Health Assistant
-        sendChatMessage: function(message, context) {
+        // Module 1: AI Health Assistant with Multi-Turn History
+        sendChatMessage: function(message, context, history) {
             return this.request("/api/assistant/chat", {
                 method: "POST",
-                body: { message: message, context: context || null }
+                body: {
+                    message: message,
+                    context: context || null,
+                    history: history || []
+                }
             });
         },
 

@@ -12,8 +12,13 @@ class EmergencyBase(BaseModel):
     status: str = Field(default="In Progress", max_length=30, description="In Progress / Ambulance Sent / Resolved")
 
 
-class EmergencyCreate(EmergencyBase):
-    pass
+class EmergencyCreate(BaseModel):
+    case_id: Optional[str] = Field(None, max_length=20, description="Unique case code, or auto-generated if omitted")
+    emergency_type: str = Field(..., max_length=100, description="Nature of incident")
+    location: str = Field(..., max_length=150, description="Incident location")
+    hospital_name: str = Field(..., max_length=150, description="Assigned hospital")
+    priority: str = Field(default="Critical", max_length=20, description="Critical / High / Medium / Low")
+    status: str = Field(default="In Progress", max_length=30, description="In Progress / Ambulance Sent / Resolved")
 
 
 class EmergencyStatusUpdate(BaseModel):
