@@ -12,7 +12,6 @@
             if (!auth) { window.location.replace("login.html"); }
         })();
     </script>
-    <script src="js/api.js"></script>
 </head>
 <body>
 
@@ -71,15 +70,16 @@
                 type="file"
                 id="reportFile"
                 accept=".pdf,.jpg,.jpeg,.png"
+                onchange="handleReportFileSelect(this)"
             >
 
             <br><br>
 
-            <button type="button" onclick="analyzeReport()">
+            <button type="button" id="analyzeBtn" onclick="analyzeReport()">
                 Analyze Report
             </button>
 
-            <p id="fileMessage"></p>
+            <p id="fileMessage" style="margin-top: 10px; font-weight: 500;"></p>
         </section>
 
         <br>
@@ -99,7 +99,227 @@
     </main>
 </div>
 
-<script src="js/api.js"></script>
-<script src="js/script.js"></script>
+<script src="js/api.js?v=20261118"></script>
+<script src="js/script.js?v=20261118"></script>
+<script>
+function handleReportFileSelect(input) {
+    var fileMessage = document.getElementById("fileMessage");
+    if (!input || !input.files || !input.files.length) {
+        if (fileMessage) fileMessage.textContent = "";
+        return;
+    }
+    var file = input.files[0];
+    var allowed = ["pdf", "png", "jpg", "jpeg"];
+    var ext = file.name.split(".").pop().toLowerCase();
+    if (!allowed.includes(ext)) {
+        if (fileMessage) {
+            fileMessage.innerHTML = "<span style='color: #b91c1c;'>⚠️ Unsupported format '." + escapeHtml(ext) + "'. Please choose PDF, PNG, or JPG.</span>";
+        }
+        return;
+    }
+    if (fileMessage) {
+        fileMessage.innerHTML = "<span style='color: #0369a1;'>📄 Ready to analyze: <strong>" + escapeHtml(file.name) + "</strong> (" + (file.size / 1024).toFixed(1) + " KB)</span>";
+    }
+}
+
+async function analyzeReport() {
+    var fileInput = document.getElementById("reportFile");
+    var fileMessage = document.getElementById("fileMessage");
+    var analysisResult = document.getElementById("analysisResult");
+    var btn = document.getElementById("analyzeBtn");
+
+    if (!fileInput || !fileInput.files || !fileInput.files.length) {
+        if (fileMessage) {
+            fileMessage.innerHTML = "<span style='color: #b91c1c; font-weight: bold;'>⚠️ Please click 'Choose File' and select a medical report first!</span>";
+        }
+        return;
+    }
+
+    var file = fileInput.files[0];
+    var allowed = ["pdf", "png", "jpg", "jpeg"];
+    var ext = file.name.split(".").pop().toLowerCase();
+
+    if (!allowed.includes(ext)) {
+        if (fileMessage) {
+            fileMessage.innerHTML = "<span style='color: #b91c1c; font-weight: bold;'>⚠️ Unsupported file format '." + escapeHtml(ext) + "'. Please choose PDF, PNG, or JPG.</span>";
+        }
+        return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+        if (fileMessage) {
+            fileMessage.innerHTML = "<span style='color: #b91c1c; font-weight: bold;'>⚠️ File exceeds 10 MB limit. Please select a smaller file.</span>";
+        }
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = "⏳ Analyzing Report with AI...";
+        btn.style.opacity = "0.7";
+        btn.style.cursor = "not-allowed";
+    }
+
+    if (fileMessage) {
+        fileMessage.innerHTML = "<span style='color: #0369a1;'>📄 Uploading <strong>" + escapeHtml(file.name) + "</strong> (" + (file.size / 1024).toFixed(1) + " KB) to AI engine...</span>";
+    }
+
+    analysisResult.innerHTML = `
+        <div style="padding: 25px; text-align: center; background: #f8fafc; border-radius: 8px; border: 1px dashed #94a3b8;">
+            <div class="spinner" style="width: 28px; height: 28px; margin: 0 auto 12px auto;"></div>
+            <p style="font-size: 16px; color: #0f4c81; font-weight: 600;">Analyzing report with MEDICHAIN AI Engine...</p>
+            <p style="font-size: 13px; color: #64748b; margin-top: 6px;">Processing clinical text & metrics. File will be automatically cleaned from server memory upon completion.</p>
+        </div>
+    `;
+    analysisResult.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+    var formData = new FormData();
+    formData.append("file", file);
+
+    var baseUrls = ["http://127.0.0.1:8000", "http://localhost:8000"];
+    var responseData = null;
+    var lastError = null;
+
+    for (var i = 0; i < baseUrls.length; i++) {
+        var base = baseUrls[i];
+        try {
+            var controller = (typeof AbortController !== "undefined") ? new AbortController() : null;
+            var timeoutId = controller ? setTimeout(function() { controller.abort(); }, 90000) : null;
+
+            var resp = await fetch(base + "/api/reports/upload", {
+                method: "POST",
+                body: formData,
+                headers: { "Accept": "application/json" },
+                signal: controller ? controller.signal : undefined
+            });
+            if (timeoutId) clearTimeout(timeoutId);
+
+            if (!resp.ok) {
+                var errJson = null;
+                try { errJson = await resp.json(); } catch(_) {}
+                var msg = (errJson && errJson.detail) ? errJson.detail : ("HTTP " + resp.status + " " + resp.statusText);
+                throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+            }
+
+            responseData = await resp.json();
+            break;
+        } catch (err) {
+            lastError = err;
+            console.warn("Upload attempt to " + base + " failed:", err);
+        }
+    }
+
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Analyze Report";
+        btn.style.opacity = "1";
+        btn.style.cursor = "pointer";
+    }
+
+    if (!responseData) {
+        analysisResult.innerHTML = `
+            <div class="connection-banner error" style="padding: 16px; border-radius: 8px; background: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b;">
+                <strong>⚠️ Analysis Failed:</strong> ${escapeHtml(lastError ? lastError.message : "Unable to reach server")}
+                <div style="font-size: 12px; margin-top: 6px; color: #7f1d1d;">
+                    Please check that the backend is active in your terminal on port 8000 (<code>python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload</code>).
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    // STRICT NON-MEDICAL REFUSAL GUARD
+    if (responseData.is_medical === false || (responseData.status && responseData.status.indexOf("Rejected") !== -1)) {
+        analysisResult.innerHTML = `
+            <div style="background: #fff7ed; border-left: 5px solid #ea580c; padding: 22px; border-radius: 8px; color: #9a3412;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                    <span style="font-size: 24px;">🚫</span>
+                    <h3 style="margin: 0; color: #c2410c; font-size: 19px;">I am only scanning medical reports</h3>
+                </div>
+                <p style="font-size: 15px; margin: 10px 0 14px 0; line-height: 1.5; color: #7c2d12;">
+                    The uploaded document (<strong>${escapeHtml(responseData.filename)}</strong>) does not contain clinical, diagnostic, or medical report data. No analysis or medical information will be provided for non-medical files.
+                </p>
+                <div style="background: #ffedd5; padding: 12px 16px; border-radius: 6px; font-size: 13px; color: #9a3412;">
+                    <strong>Please upload a valid healthcare document, such as:</strong>
+                    <ul style="margin: 6px 0 0 18px; padding-left: 0;">
+                        <li>Pathology & Blood Tests (CBC, Glucose, Lipid Panel, Thyroid, etc.)</li>
+                        <li>Doctor Prescriptions & Hospital Discharge Notes</li>
+                        <li>Diagnostic Scans (X-Ray, Ultrasound, MRI, CT)</li>
+                        <li>Official Clinical Health Checkup Records</li>
+                    </ul>
+                </div>
+            </div>
+        `;
+        analysisResult.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        return;
+    }
+
+    // Render result
+    var observationsHtml = "";
+    if (Array.isArray(responseData.key_observations)) {
+        observationsHtml = responseData.key_observations
+            .filter(function(o) { return Boolean(o && o.trim()); })
+            .map(function(obs) { return "<li style='margin-bottom: 8px;'>" + escapeHtml(obs) + "</li>"; })
+            .join("");
+    }
+
+    var findingsHtml = "";
+    if (Array.isArray(responseData.extracted_findings) && responseData.extracted_findings.length > 0) {
+        var findingsList = responseData.extracted_findings
+            .map(function(f) { return "<li style='margin-bottom: 6px;'><code>" + escapeHtml(f) + "</code></li>"; })
+            .join("");
+        findingsHtml = `
+            <div class="report-section-block" style="border-left: 4px solid #6366f1; background: #f5f3ff; padding: 14px 18px; border-radius: 6px; margin-top: 15px;">
+                <h4 style="color: #4338ca; margin-bottom: 8px;">🔬 Extracted Clinical Metrics & Lab Values</h4>
+                <ul style="padding-left: 20px; color: #1e1b4b;">${findingsList}</ul>
+            </div>
+        `;
+    }
+
+    var questionsHtml = "";
+    if (Array.isArray(responseData.suggested_questions_for_doctor)) {
+        questionsHtml = responseData.suggested_questions_for_doctor
+            .map(function(q) { return "<li style='margin-bottom: 8px;'>" + escapeHtml(q) + "</li>"; })
+            .join("");
+    }
+
+    analysisResult.innerHTML = `
+        <div style="margin-bottom: 15px; display: flex; gap: 8px; flex-wrap: wrap;">
+            <span style="background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;">✓ Memory Cleaned (Zero-Retention)</span>
+            <span style="background: #e0f2fe; color: #075985; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;">AI Engine: ${escapeHtml(responseData.extraction_method || "gemini_ai")}</span>
+            <span style="background: #f1f5f9; color: #334155; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;">Status: ${escapeHtml(responseData.status || "Completed")}</span>
+        </div>
+
+        <h3 style="color: #0f4c81; margin-bottom: 8px; font-size: 18px;">${escapeHtml(responseData.summary_title || "Preliminary Clinical Summary")}</h3>
+
+        <p style="font-size: 13px; color: #64748b; margin-bottom: 16px;">
+            <strong>Document:</strong> ${escapeHtml(responseData.filename)} | 
+            <strong>Size:</strong> ${responseData.file_size_kb} KB | 
+            <strong>Format:</strong> ${escapeHtml(responseData.content_type)}
+        </p>
+
+        <div class="report-section-block" style="border-left: 4px solid #0284c7; background: #f0f9ff; padding: 14px 18px; border-radius: 6px; margin-bottom: 15px;">
+            <h4 style="color: #0369a1; margin-bottom: 8px;">📋 Key Clinical Observations</h4>
+            <ul style="padding-left: 20px; color: #0c4a6e;">${observationsHtml || "<li>Preliminary review generated. Discuss with your attending physician.</li>"}</ul>
+        </div>
+
+        ${findingsHtml}
+
+        <div class="report-section-block" style="border-left: 4px solid #059669; background: #ecfdf5; padding: 14px 18px; border-radius: 6px; margin-top: 15px;">
+            <h4 style="color: #065f46; margin-bottom: 8px;">💬 Suggested Questions for Your Doctor</h4>
+            <ul style="padding-left: 20px; color: #064e3b;">${questionsHtml}</ul>
+        </div>
+
+        <p class="disclaimer" style="margin-top: 20px; padding: 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; color: #92400e; font-size: 12px;">
+            ⚠️ <strong>Medical Notice:</strong> ${escapeHtml(responseData.disclaimer || "Preliminary summary generated for educational guidance only. This tool is NOT a diagnostic medical device.")}
+        </p>
+    `;
+
+    analysisResult.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+window.analyzeReport = analyzeReport;
+window.handleReportFileSelect = handleReportFileSelect;
+</script>
 </body>
 </html>
