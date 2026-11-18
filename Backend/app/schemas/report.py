@@ -16,6 +16,7 @@ class ReportAnalysisResponse(BaseModel):
     file_size_kb: float
     content_type: str
     status: str = "Completed"
+    is_medical: bool = True
     summary_title: str
     key_observations: List[str]
     extracted_findings: List[str] = Field(default_factory=list)

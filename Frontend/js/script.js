@@ -309,7 +309,6 @@ function askQuestion(question) {
     input.value = question;
     sendMessage();
 }
-}
 
 
 // ============================================================================
@@ -586,14 +585,37 @@ async function updateCaseStatus(caseId, newStatus) {
 // MODULE 4: AI PRELIMINARY REPORT ANALYSIS (reports.html)
 // ============================================================================
 
+function handleReportFileSelect(input) {
+    var fileMessage = document.getElementById("fileMessage");
+    if (!input || !input.files || !input.files.length) {
+        if (fileMessage) fileMessage.textContent = "";
+        return;
+    }
+    var file = input.files[0];
+    var allowed = ["pdf", "png", "jpg", "jpeg"];
+    var ext = file.name.split(".").pop().toLowerCase();
+    if (!allowed.includes(ext)) {
+        if (fileMessage) {
+            fileMessage.textContent = "⚠️ Unsupported format '." + ext + "'. Please choose PDF, PNG, or JPG.";
+            fileMessage.style.color = "#b91c1c";
+        }
+        return;
+    }
+    if (fileMessage) {
+        fileMessage.textContent = "📄 Ready to analyze: " + file.name + " (" + (file.size / 1024).toFixed(1) + " KB)";
+        fileMessage.style.color = "#0369a1";
+    }
+}
+
 async function analyzeReport() {
     var fileInput = document.getElementById("reportFile");
     var fileMessage = document.getElementById("fileMessage");
     var analysisResult = document.getElementById("analysisResult");
+    var btn = document.getElementById("analyzeBtn");
 
     if (!fileInput || !fileInput.files.length) {
         if (fileMessage) {
-            fileMessage.textContent = "Please select a medical report file first.";
+            fileMessage.textContent = "⚠️ Please select a medical report file first.";
             fileMessage.style.color = "#b91c1c";
         }
         return;
@@ -624,6 +646,12 @@ async function analyzeReport() {
         fileMessage.style.color = "#0f4c81";
     }
 
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = "⏳ Analyzing Report...";
+        btn.style.opacity = "0.7";
+    }
+
     // Show loading state
     analysisResult.innerHTML = `
         <div style="padding: 20px; text-align: center;">
@@ -635,6 +663,29 @@ async function analyzeReport() {
     try {
         var client = getApiClient();
         var result = await client.uploadReport(file);
+
+        if (result.is_medical === false || (result.status && result.status.indexOf("Rejected") !== -1)) {
+            analysisResult.innerHTML = `
+                <div style="background: #fff7ed; border-left: 5px solid #ea580c; padding: 22px; border-radius: 8px; color: #9a3412;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                        <span style="font-size: 24px;">🚫</span>
+                        <h3 style="margin: 0; color: #c2410c; font-size: 19px;">I am only scanning medical reports</h3>
+                    </div>
+                    <p style="font-size: 15px; margin: 10px 0 14px 0; line-height: 1.5; color: #7c2d12;">
+                        The uploaded file (<strong>${escapeHtml(result.filename)}</strong>) does not contain clinical, diagnostic, or medical report data. No analysis or clinical information will be provided.
+                    </p>
+                    <div style="background: #ffedd5; padding: 12px 16px; border-radius: 6px; font-size: 13px; color: #9a3412;">
+                        <strong>Please upload a valid medical report, such as:</strong>
+                        <ul style="margin: 6px 0 0 18px; padding-left: 0;">
+                            <li>Pathology & Blood Tests (CBC, Blood Sugar, Lipid Profile, etc.)</li>
+                            <li>Doctor Prescriptions & Hospital Discharge Notes</li>
+                            <li>Diagnostic Imaging (X-Ray, Ultrasound, CT, MRI)</li>
+                        </ul>
+                    </div>
+                </div>
+            `;
+            return;
+        }
 
         // Observations HTML
         var observationsHtml = "";
@@ -706,6 +757,12 @@ async function analyzeReport() {
                 </div>
             </div>
         `;
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = "Analyze Report";
+            btn.style.opacity = "1";
+        }
     }
 }
 
@@ -834,3 +891,13 @@ document.addEventListener("DOMContentLoaded", function() {
     loadResourceDashboard();
     loadEmergencyDashboard();
 });
+
+// Explicit global registrations
+if (typeof window !== "undefined") {
+    window.analyzeReport = analyzeReport;
+    window.handleReportFileSelect = handleReportFileSelect;
+    window.sendMessage = sendMessage;
+    window.askQuestion = askQuestion;
+    window.toggleSidebar = toggleSidebar;
+    window.handleLogout = handleLogout;
+}

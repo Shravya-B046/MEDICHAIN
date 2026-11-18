@@ -50,16 +50,26 @@ engine = None
 # Attempt primary connection and verify connectivity
 try:
     if database_url.startswith("postgresql"):
-        import psycopg
+        try:
+            import psycopg
 
-        def _create_pg_conn():
-            return psycopg.connect(database_url)
+            def _create_pg_conn():
+                return psycopg.connect(database_url)
 
-        candidate_engine = create_engine(
-            "postgresql+psycopg://",
-            creator=_create_pg_conn,
-            pool_pre_ping=True,
-        )
+            candidate_engine = create_engine(
+                "postgresql+psycopg://",
+                creator=_create_pg_conn,
+                pool_pre_ping=True,
+            )
+        except ImportError:
+            import psycopg2
+            pg_url = database_url
+            if pg_url.startswith("postgresql://"):
+                pg_url = pg_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+            candidate_engine = create_engine(
+                pg_url,
+                pool_pre_ping=True,
+            )
     else:
         candidate_engine = create_engine(
             database_url,
