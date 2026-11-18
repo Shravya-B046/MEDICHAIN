@@ -1,18 +1,19 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>AI Health Assistant | MEDICHAIN</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=3.0">
     <script>
         (function() {
             var auth = localStorage.getItem("medichain_auth") || sessionStorage.getItem("medichain_auth");
             if (!auth) { window.location.replace("login.html"); }
         })();
     </script>
-    <script src="js/api.js"></script>
 </head>
 
 <body>
@@ -83,7 +84,7 @@
                     <h3>Clinical Health Assistant</h3>
                     <p id="assistantStatusText" style="color: #15803d; font-weight: 500;">● Online</p>
                 </div>
-                <button onclick="clearChat()" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                <button type="button" onclick="clearChat()" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;">
                     🧹 Clear Chat
                 </button>
             </div>
@@ -108,19 +109,19 @@
             <!-- Suggested Questions -->
             <div class="suggestions">
 
-                <button onclick="askQuestion('What is Paracetamol used for and what are its precautions?')">
+                <button type="button" onclick="askQuestion('What is Paracetamol used for and what are its precautions?')">
                     💊 Paracetamol Info
                 </button>
 
-                <button onclick="askQuestion('What are the common symptoms of dehydration?')">
+                <button type="button" onclick="askQuestion('What are the common symptoms of dehydration?')">
                     💧 Dehydration Symptoms
                 </button>
 
-                <button onclick="askQuestion('What is Metformin prescribed for and when should it be taken?')">
+                <button type="button" onclick="askQuestion('What is Metformin prescribed for and when should it be taken?')">
                     🩺 Metformin Guidance
                 </button>
 
-                <button onclick="askQuestion('How can I maintain a healthy balanced diet?')">
+                <button type="button" onclick="askQuestion('How can I maintain a healthy balanced diet?')">
                     🥗 Healthy Diet Guidelines
                 </button>
 
@@ -134,10 +135,10 @@
                     type="text"
                     id="userInput"
                     placeholder="Type your health or medication question (e.g., 'What is Ibuprofen used for?')..."
-                    onkeydown="if(event.key === 'Enter') sendMessage()"
+                    onkeydown="if(event.key === 'Enter') { event.preventDefault(); sendMessage(); }"
                 >
 
-                <button onclick="sendMessage()">Send ➤</button>
+                <button type="button" id="sendBtn" onclick="sendMessage()">Send ➤</button>
 
             </div>
 
@@ -152,8 +153,258 @@
 
 </div>
 
-<script src="js/api.js"></script>
-<script src="js/script.js"></script>
+<!-- Core Scripts with Cache Buster -->
+<script src="js/api.js?v=3.0"></script>
+<script src="js/script.js?v=3.0"></script>
+
+<!-- Embedded Fail-Safe Assistant Handler (Direct & Resilient) -->
+<script>
+    var assistantChatHistory = [];
+
+    // Expose helpers globally immediately
+    window.assistantChatHistory = assistantChatHistory;
+
+    function renderMedicalMarkdown(text) {
+        if (!text) return "";
+        var escaped = text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+
+        escaped = escaped.replace(/^### (.*$)/gim, '<h4 class="md-h4">$1</h4>');
+        escaped = escaped.replace(/^## (.*$)/gim, '<h3 class="md-h3">$1</h3>');
+        escaped = escaped.replace(/^# (.*$)/gim, '<h2 class="md-h2">$1</h2>');
+        escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        escaped = escaped.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        escaped = escaped.replace(/\[(.*?)\]\((https?:\/\/.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="md-link">$1 ↗</a>');
+        escaped = escaped.replace(/^&gt; \[\!NOTE\]\s*\n&gt; (.*$)/gim, '<div class="md-callout"><strong>Clinical Clarification:</strong> $1</div>');
+        escaped = escaped.replace(/^&gt; (.*$)/gim, '<blockquote class="md-quote">$1</blockquote>');
+
+        var lines = escaped.split("\n");
+        var inList = false;
+        var output = [];
+
+        for (var i = 0; i < lines.length; i++) {
+            var rawLine = lines[i].trim();
+            if (rawLine.startsWith("- ") || rawLine.startsWith("* ")) {
+                if (!inList) { output.push('<ul class="md-list">'); inList = true; }
+                output.push('<li>' + rawLine.substring(2) + '</li>');
+            } else {
+                if (inList) { output.push('</ul>'); inList = false; }
+                if (rawLine.length > 0) {
+                    if (rawLine.startsWith("<h2") || rawLine.startsWith("<h3") || rawLine.startsWith("<h4") || rawLine.startsWith("<div") || rawLine.startsWith("<blockquote")) {
+                        output.push(rawLine);
+                    } else if (rawLine === "---") {
+                        output.push('<hr class="md-divider">');
+                    } else {
+                        output.push('<p class="md-p">' + rawLine + '</p>');
+                    }
+                }
+            }
+        }
+        if (inList) output.push('</ul>');
+        return output.join("\n");
+    }
+
+    function clearChat() {
+        assistantChatHistory = [];
+        window.assistantChatHistory = [];
+        var chatMessages = document.getElementById("chatMessages");
+        if (!chatMessages) return;
+        chatMessages.innerHTML = `
+            <div class="message bot-message">
+                <p><strong>Hello! 👋 Welcome back to MEDICHAIN Clinical AI.</strong></p>
+                <p>I am your digital healthcare assistant, grounded in WHO, MedlinePlus, and clinical evidence. You can ask me:</p>
+                <ul class="md-list">
+                    <li>General health, lifestyle & preventive care questions</li>
+                    <li>Symptom explanations and home precautions</li>
+                    <li>Detailed <strong>medicine information</strong> (uses, mechanism, side effects, interactions & food timing)</li>
+                </ul>
+                <p style="font-size: 12px; color: #64748b; margin-top: 6px;">How can I assist your health inquiry today?</p>
+            </div>
+        `;
+    }
+
+    function askQuestion(q) {
+        var input = document.getElementById("userInput");
+        if (!input) return;
+        input.value = q;
+        sendMessage();
+    }
+
+    async function sendMessage() {
+        var input = document.getElementById("userInput");
+        var chatMessages = document.getElementById("chatMessages");
+        var sendBtn = document.getElementById("sendBtn");
+        if (!input || !chatMessages) return;
+
+        var question = input.value.trim();
+        if (question === "") return;
+
+        // 1. Immediately append user bubble & clear input
+        var userMsg = document.createElement("div");
+        userMsg.className = "message user-message";
+        userMsg.textContent = question;
+        chatMessages.appendChild(userMsg);
+
+        input.value = "";
+        if (sendBtn) sendBtn.disabled = true;
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        // 2. Append typing indicator
+        var typingMsg = document.createElement("div");
+        typingMsg.className = "message bot-message chat-typing";
+        typingMsg.id = "typingIndicator";
+        typingMsg.innerHTML = '<span class="spinner"></span> Consulting MEDICHAIN clinical AI engine...';
+        chatMessages.appendChild(typingMsg);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        // 3. Resolve API base URL dynamically
+        var apiUrl = (window.medichainApi && window.medichainApi.baseUrl) 
+            ? window.medichainApi.baseUrl 
+            : (window.location.hostname === "localhost" ? "http://localhost:8000" : "http://127.0.0.1:8000");
+
+        try {
+            var res = await fetch(apiUrl + "/api/assistant/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                body: JSON.stringify({ message: question, history: assistantChatHistory })
+            });
+
+            if (typingMsg.parentNode) typingMsg.parentNode.removeChild(typingMsg);
+            if (sendBtn) sendBtn.disabled = false;
+            input.focus();
+
+            if (!res.ok) {
+                var errDetail = "HTTP " + res.status;
+                try { var errJson = await res.json(); if (errJson.detail) errDetail = errJson.detail; } catch(_) {}
+                throw new Error(errDetail);
+            }
+
+            var data = await res.json();
+
+            // Save multi-turn history
+            assistantChatHistory.push({ role: "user", content: question });
+            if (data.reply) assistantChatHistory.push({ role: "assistant", content: data.reply });
+
+            var botMsg = document.createElement("div");
+            botMsg.className = "message bot-message";
+
+            if (data.is_emergency) {
+                var alertCard = document.createElement("div");
+                alertCard.className = "emergency-alert-card";
+                alertCard.innerHTML = `
+                    <strong>🚨 Critical Emergency Alert</strong>
+                    <span>Potential acute medical emergency detected. Immediate professional care is required.</span>
+                    <div style="margin-top: 8px;">
+                        <a href="emergency.html" style="display: inline-block; background: #dc2626; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 12px;">Go to Emergency Coordination ➔</a>
+                    </div>
+                `;
+                botMsg.appendChild(alertCard);
+            }
+
+            var contentDiv = document.createElement("div");
+            contentDiv.innerHTML = renderMedicalMarkdown(data.reply || "No response received.");
+            botMsg.appendChild(contentDiv);
+
+            var badge = document.createElement("span");
+            if (data.source === "gemini_api") {
+                badge.className = "api-badge live";
+                badge.textContent = "🤖 Powered by Gemini AI (Model 3.1 Flash-Lite)";
+            } else if (data.source === "verified_medical_kb") {
+                badge.className = "api-badge live";
+                badge.textContent = "📚 Verified Medical Knowledge Base";
+            } else {
+                badge.className = "api-badge ai";
+                badge.textContent = "🩺 Clinical Engine (Educational)";
+            }
+            botMsg.appendChild(badge);
+
+            if (data.verified_sources && data.verified_sources.length > 0) {
+                var sourcesDiv = document.createElement("div");
+                sourcesDiv.className = "source-pill-container";
+                sourcesDiv.innerHTML = '<span style="font-size: 11px; color: #64748b; font-weight: 600;">References:</span>';
+                data.verified_sources.forEach(function(s) {
+                    var pill = document.createElement("span");
+                    pill.className = "source-pill";
+                    pill.textContent = s;
+                    sourcesDiv.appendChild(pill);
+                });
+                botMsg.appendChild(sourcesDiv);
+            }
+
+            if (data.disclaimer) {
+                var discP = document.createElement("p");
+                discP.style.fontSize = "11px";
+                discP.style.color = "#64748b";
+                discP.style.marginTop = "8px";
+                discP.style.borderTop = "1px solid #f1f5f9";
+                discP.style.paddingTop = "6px";
+                discP.textContent = "⚠️ " + data.disclaimer;
+                botMsg.appendChild(discP);
+            }
+
+            chatMessages.appendChild(botMsg);
+        } catch (err) {
+            if (typingMsg.parentNode) typingMsg.parentNode.removeChild(typingMsg);
+            if (sendBtn) sendBtn.disabled = false;
+            input.focus();
+
+            var errMsg = document.createElement("div");
+            errMsg.className = "message bot-message";
+            errMsg.innerHTML = `
+                <p style="color: #b91c1c;"><strong>⚠️ Connection Notice:</strong> Unable to reach the clinical assistant service (${err.message}).</p>
+                <p style="font-size: 13px; margin-top: 6px; color: #64748b;">Please verify that the backend is active at <code>http://127.0.0.1:8000</code>.</p>
+            `;
+            chatMessages.appendChild(errMsg);
+        }
+
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Direct status checker
+    async function checkDirectStatus() {
+        var statusEl = document.getElementById("assistantStatusText");
+        if (!statusEl) return;
+        var apiUrl = window.location.hostname === "localhost" ? "http://localhost:8000" : "http://127.0.0.1:8000";
+        try {
+            var r = await fetch(apiUrl + "/api/health", { cache: "no-store" });
+            if (r.ok) {
+                var h = await r.json();
+                statusEl.innerHTML = `● Online <span style="font-size: 11px; opacity: 0.85;">(${h.gemini_ai_configured ? 'Gemini 3.1 Live' : 'Medical Engine'} | ${h.database || 'active'})</span>`;
+                statusEl.style.color = "#15803d";
+            }
+        } catch(e) {
+            statusEl.innerHTML = `● Backend Offline <span style="font-size: 11px;">(Check port 8000)</span>`;
+            statusEl.style.color = "#b91c1c";
+        }
+    }
+
+    // Bind globally and attach event listeners
+    window.sendMessage = sendMessage;
+    window.askQuestion = askQuestion;
+    window.clearChat = clearChat;
+
+    window.addEventListener("DOMContentLoaded", function() {
+        checkDirectStatus();
+        var sendBtn = document.getElementById("sendBtn");
+        var userInput = document.getElementById("userInput");
+        if (sendBtn) {
+            sendBtn.onclick = function(e) {
+                e.preventDefault();
+                sendMessage();
+            };
+        }
+        if (userInput) {
+            userInput.onkeydown = function(e) {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            };
+        }
+    });
+</script>
 
 </body>
 </html>

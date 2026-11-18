@@ -309,6 +309,11 @@ function askQuestion(question) {
     input.value = question;
     sendMessage();
 }
+
+if (typeof window !== "undefined") {
+    window.sendMessage = sendMessage;
+    window.askQuestion = askQuestion;
+    window.clearChat = clearChat;
 }
 
 
