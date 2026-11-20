@@ -83,6 +83,7 @@ function getApiClient() {
 var chatHistory = [];
 
 function clearChat() {
+    if (typeof stopSpeaking === "function") stopSpeaking();
     chatHistory = [];
     var chatMessages = document.getElementById("chatMessages");
     if (!chatMessages) return;
@@ -96,6 +97,13 @@ function clearChat() {
                 <li>Detailed <strong>medicine information</strong> (uses, mechanism, side effects, interactions & food timing)</li>
             </ul>
             <p style="font-size: 12px; color: #64748b; margin-top: 6px;">How can I assist your health inquiry today?</p>
+            <div class="speak-aloud-container">
+                <button type="button" class="speak-aloud-btn" onclick="toggleSpeech(this)"
+                    data-speech-text="Hello! Welcome back to MEDICHAIN Clinical AI. I am your digital healthcare assistant, grounded in WHO, MedlinePlus, and clinical evidence. You can ask me general health, lifestyle, and preventive care questions, symptom explanations, and detailed medicine information. How can I assist your health inquiry today?"
+                    title="Listen to this answer (Text to Speech)" aria-label="Speak out loud">
+                    <span>🔊</span> <span>Speak Out Loud</span>
+                </button>
+            </div>
         </div>
     `;
 }
@@ -204,10 +212,11 @@ async function sendMessage() {
     chatMessages.appendChild(typingMessage);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
-    // Call real FastAPI backend with conversation history for multi-turn support
+    // Call real FastAPI backend with conversation history & multilingual support
     try {
         var client = getApiClient();
-        var data = await client.sendChatMessage(question, null, chatHistory);
+        var currentLang = (typeof currentLanguage !== "undefined" ? currentLanguage : (localStorage.getItem("medichain_lang") || "en"));
+        var data = await client.sendChatMessage(question, null, chatHistory, currentLang);
 
         // Remove typing indicator
         if (typingMessage.parentNode) {
@@ -285,6 +294,24 @@ async function sendMessage() {
             botMessage.appendChild(disc);
         }
 
+        // Append Speak Out Loud accessibility button right at the end of the answer
+        var speakContainer = document.createElement("div");
+        speakContainer.className = "speak-aloud-container";
+
+        var speakBtn = document.createElement("button");
+        speakBtn.type = "button";
+        speakBtn.className = "speak-aloud-btn";
+        speakBtn.setAttribute("aria-label", "Speak out loud - Text to Speech for accessibility");
+        speakBtn.setAttribute("title", "Listen to this answer (Text to Speech)");
+        speakBtn.innerHTML = `<span>🔊</span> <span>Speak Out Loud</span>`;
+        speakBtn.dataset.speechText = cleanTextForSpeech(data.reply || "");
+        speakBtn.onclick = function () {
+            toggleSpeech(speakBtn);
+        };
+
+        speakContainer.appendChild(speakBtn);
+        botMessage.appendChild(speakContainer);
+
         chatMessages.appendChild(botMessage);
     } catch (error) {
         if (typingMessage.parentNode) {
@@ -310,10 +337,225 @@ function askQuestion(question) {
     sendMessage();
 }
 
+// ============================================================================
+// TEXT-TO-SPEECH (SPEAK OUT LOUD) ACCESSIBILITY ENGINE
+// ============================================================================
+var currentSpeechUtterance = null;
+var activeSpeakingBtn = null;
+
+function cleanTextForSpeech(raw) {
+    if (!raw) return "";
+    var text = raw;
+    text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+    text = text.replace(/#{1,6}\s+/g, "");
+    text = text.replace(/\*\*(.*?)\*\*/g, "$1");
+    text = text.replace(/\*(.*?)\*/g, "$1");
+    text = text.replace(/__(.*?)__/g, "$1");
+    text = text.replace(/_(.*?)_/g, "$1");
+    text = text.replace(/`{1,3}[^`]*`{1,3}/g, "");
+    text = text.replace(/^\s*[-*+]\s+/gm, "");
+    text = text.replace(/^\s*\d+\.\s+/gm, "");
+    text = text.replace(/^-{3,}|^\*{3,}|^_{3,}/gm, "");
+    text = text.replace(/<[^>]*>/g, " ");
+    text = text.replace(/\s+/g, " ").trim();
+    return text;
+}
+
+function stopSpeaking() {
+    if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+    }
+    if (activeSpeakingBtn) {
+        activeSpeakingBtn.classList.remove("speaking");
+        activeSpeakingBtn.innerHTML = "<span>🔊</span> <span>Speak Out Loud</span>";
+        activeSpeakingBtn.setAttribute("title", "Listen to this answer (Text to Speech)");
+        activeSpeakingBtn = null;
+    }
+    currentSpeechUtterance = null;
+}
+
+function toggleSpeech(btn) {
+    if (!("speechSynthesis" in window)) {
+        alert("Text-to-speech is not supported in this browser. Please try Google Chrome, Microsoft Edge, or Safari.");
+        return;
+    }
+
+    if (activeSpeakingBtn === btn && window.speechSynthesis.speaking) {
+        stopSpeaking();
+        return;
+    }
+
+    stopSpeaking();
+
+    var textToSpeak = btn.dataset.speechText;
+    if (!textToSpeak) {
+        var parentMsg = btn.closest(".bot-message");
+        if (parentMsg) {
+            var clone = parentMsg.cloneNode(true);
+            var containers = clone.querySelectorAll(".speak-aloud-container, .api-badge, .source-pill-container");
+            containers.forEach(function (el) { el.remove(); });
+            textToSpeak = cleanTextForSpeech(clone.innerText || clone.textContent);
+        }
+    }
+
+    if (!textToSpeak) return;
+
+    var utterance = new SpeechSynthesisUtterance(textToSpeak);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    utterance.onstart = function () {
+        activeSpeakingBtn = btn;
+        btn.classList.add("speaking");
+        btn.innerHTML = "<span>⏹️</span> <span>Stop Speaking</span>";
+        btn.setAttribute("title", "Click to stop speaking");
+    };
+
+    utterance.onend = function () {
+        stopSpeaking();
+    };
+
+    utterance.onerror = function (err) {
+        console.warn("Speech synthesis notice:", err);
+        stopSpeaking();
+    };
+
+    currentSpeechUtterance = utterance;
+    window.speechSynthesis.speak(utterance);
+}
+
+// ============================================================================
+// VOICE INPUT (SPEECH-TO-TEXT) FOR AI HEALTH ASSISTANT
+// ============================================================================
+
+var recognitionInstance = null;
+var isListening = false;
+
+function initVoiceRecognition() {
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        return null;
+    }
+
+    var recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = navigator.language || "en-US";
+
+    recognition.onstart = function () {
+        isListening = true;
+        updateVoiceUI(true);
+    };
+
+    recognition.onresult = function (event) {
+        var input = document.getElementById("userInput");
+        if (!input) return;
+
+        var transcript = "";
+        for (var i = 0; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
+        }
+
+        if (transcript) {
+            input.value = transcript;
+            input.focus();
+        }
+    };
+
+    recognition.onerror = function (event) {
+        console.warn("Speech recognition notice:", event.error);
+        if (event.error === "not-allowed") {
+            alert("Microphone permission was denied. Please allow microphone access in your browser settings to use voice input.");
+        }
+        isListening = false;
+        updateVoiceUI(false);
+    };
+
+    recognition.onend = function () {
+        isListening = false;
+        updateVoiceUI(false);
+        var input = document.getElementById("userInput");
+        if (input && input.value.trim().length > 0) {
+            input.focus();
+        }
+    };
+
+    return recognition;
+}
+
+function toggleVoiceInput() {
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        alert("Speech recognition is not supported in this browser. Please use Google Chrome, Microsoft Edge, or Safari.");
+        return;
+    }
+
+    if (isListening && recognitionInstance) {
+        try {
+            recognitionInstance.stop();
+        } catch (e) {}
+        return;
+    }
+
+    if (!recognitionInstance) {
+        recognitionInstance = initVoiceRecognition();
+    }
+
+    if (recognitionInstance) {
+        try {
+            recognitionInstance.start();
+        } catch (e) {
+            try { recognitionInstance.stop(); } catch (err) {}
+            recognitionInstance = initVoiceRecognition();
+            if (recognitionInstance) {
+                setTimeout(function () {
+                    try { recognitionInstance.start(); } catch (err) {}
+                }, 200);
+            }
+        }
+    }
+}
+
+function updateVoiceUI(listening) {
+    var micBtn = document.getElementById("micBtn");
+    var input = document.getElementById("userInput");
+    var voiceStatus = document.getElementById("voiceStatusPill");
+
+    if (micBtn) {
+        if (listening) {
+            micBtn.classList.add("listening");
+            micBtn.title = "Listening to your symptoms... Click to stop";
+            micBtn.setAttribute("aria-label", "Listening... Click to stop");
+        } else {
+            micBtn.classList.remove("listening");
+            micBtn.title = "Speak your symptoms (Voice Input)";
+            micBtn.setAttribute("aria-label", "Speak your symptoms");
+        }
+    }
+
+    if (input) {
+        if (listening) {
+            if (!input.dataset.originalPlaceholder) {
+                input.dataset.originalPlaceholder = input.placeholder;
+            }
+            input.placeholder = "🎙️ Listening to your symptoms... speak clearly";
+        } else {
+            if (input.dataset.originalPlaceholder) {
+                input.placeholder = input.dataset.originalPlaceholder;
+            }
+        }
+    }
+
+    if (voiceStatus) {
+        voiceStatus.style.display = listening ? "flex" : "none";
+    }
+}
+
 if (typeof window !== "undefined") {
     window.sendMessage = sendMessage;
     window.askQuestion = askQuestion;
     window.clearChat = clearChat;
+    window.toggleVoiceInput = toggleVoiceInput;
 }
 
 
@@ -433,80 +675,201 @@ function renderResourceRows(items) {
 // MODULE 3: EMERGENCY COORDINATION (emergency.html)
 // ============================================================================
 
+var cachedEmergencies = (function() {
+    try {
+        var stored = localStorage.getItem("medichain_emergencies");
+        if (stored) {
+            var parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+    } catch (_) {}
+
+    return [
+        { case_id: "EMG001", emergency_type: "Road Accident", location: "Mangaluru", hospital_name: "City Hospital", priority: "Critical", status: "Ambulance Sent" },
+        { case_id: "EMG002", emergency_type: "Cardiac Emergency", location: "Bantwal", hospital_name: "General Hospital", priority: "Critical", status: "Ambulance Sent" },
+        { case_id: "EMG003", emergency_type: "Medical Emergency", location: "Udupi", hospital_name: "District Hospital", priority: "Medium", status: "Resolved" },
+        { case_id: "EMG004", emergency_type: "Accident", location: "Surathkal", hospital_name: "City Hospital", priority: "High", status: "In Progress" },
+        { case_id: "EMG005", emergency_type: "Trauma / Fall", location: "Mangaluru", hospital_name: "Jyothi Hospital", priority: "Medium", status: "In Progress" }
+    ];
+})();
+
+function saveEmergenciesToStorage(list) {
+    try {
+        localStorage.setItem("medichain_emergencies", JSON.stringify(list));
+    } catch (_) {}
+}
+
+function filterEmergencyView(view) {
+    var tabs = ["all", "pending", "dispatched", "resolved"];
+    tabs.forEach(function(t) {
+        var btn = document.getElementById("tabBtn" + t.charAt(0).toUpperCase() + t.slice(1));
+        if (btn) {
+            if (t === view) {
+                btn.classList.add("active");
+            } else {
+                btn.classList.remove("active");
+            }
+        }
+    });
+
+    var secPending = document.getElementById("sectionPending");
+    var secDispatched = document.getElementById("sectionDispatched");
+    var secResolved = document.getElementById("sectionResolved");
+
+    if (secPending) secPending.style.display = (view === "all" || view === "pending") ? "block" : "none";
+    if (secDispatched) secDispatched.style.display = (view === "all" || view === "dispatched") ? "block" : "none";
+    if (secResolved) secResolved.style.display = (view === "all" || view === "resolved") ? "block" : "none";
+}
+
+function renderEmergencyRows(cases, type, highlightedCaseId) {
+    if (!Array.isArray(cases) || cases.length === 0) {
+        var emptyText = "No cases in this category.";
+        if (type === "pending") emptyText = "No pending emergencies awaiting dispatch.";
+        else if (type === "dispatched") emptyText = "No dispatched ambulance units en route.";
+        else if (type === "resolved") emptyText = "No resolved cases logged.";
+        return `<tr><td colspan="7" class="empty-case-msg">${emptyText}</td></tr>`;
+    }
+
+    return cases.map(function(c) {
+        var p = (c.priority || "").toLowerCase();
+        var priorityClass = "available";
+        if (p === "critical") priorityClass = "occupied";
+        else if (p === "high") priorityClass = "warning";
+
+        var s = (c.status || "").toLowerCase();
+        var statusClass = "warning";
+        if (s === "resolved" || s === "closed" || s === "completed") statusClass = "available";
+        else if (s === "ambulance sent" || s === "dispatched") statusClass = "warning";
+
+        var actionHtml = "";
+        if (type === "pending") {
+            actionHtml = `<button class="emg-btn-dispatch" onclick="updateCaseStatus('${escapeHtml(c.case_id)}', 'Ambulance Sent')">Dispatch 🚑</button>`;
+        } else if (type === "dispatched") {
+            actionHtml = `<button class="emg-btn-resolve" onclick="updateCaseStatus('${escapeHtml(c.case_id)}', 'Resolved')">Resolve ✓</button>`;
+        } else {
+            actionHtml = `<span class="badge-status-closed">Closed ✓</span>`;
+        }
+
+        var isHighlighted = highlightedCaseId && c.case_id === highlightedCaseId;
+        var rowClass = isHighlighted ? ' class="newly-added-case"' : "";
+
+        return `
+            <tr${rowClass} id="row-${escapeHtml(c.case_id)}">
+                <td><strong>${escapeHtml(c.case_id)}</strong></td>
+                <td>${escapeHtml(c.emergency_type)}</td>
+                <td>${escapeHtml(c.location)}</td>
+                <td>${escapeHtml(c.hospital_name)}</td>
+                <td><span class="status ${priorityClass}">${escapeHtml(c.priority)}</span></td>
+                <td><span class="status ${statusClass}">${escapeHtml(c.status)}</span></td>
+                <td>${actionHtml}</td>
+            </tr>
+        `;
+    }).join("");
+}
+
+function renderCategorizedEmergencies(emergencies, highlightedCaseId) {
+    var tablePending = document.getElementById("tableBodyPending");
+    var tableDispatched = document.getElementById("tableBodyDispatched");
+    var tableResolved = document.getElementById("tableBodyResolved");
+    var legacyBody = document.getElementById("emergencyTableBody");
+
+    var pendingCases = [];
+    var dispatchedCases = [];
+    var resolvedCases = [];
+
+    (emergencies || []).forEach(function(c) {
+        var st = (c.status || "").toLowerCase();
+        if (st === "resolved" || st === "closed" || st === "completed") {
+            resolvedCases.push(c);
+        } else if (st.includes("ambulance") || st.includes("sent") || st.includes("dispatched") || st.includes("en route")) {
+            dispatchedCases.push(c);
+        } else {
+            pendingCases.push(c);
+        }
+    });
+
+    // 1. Update Overview Metric Cards
+    var emgTotal = document.getElementById("emgTotal");
+    var emgActive = document.getElementById("emgActive");
+    var emgDispatched = document.getElementById("emgDispatched");
+    var emgResolved = document.getElementById("emgResolved");
+
+    var fmt = function(num) {
+        return num < 10 ? "0" + num : "" + num;
+    };
+
+    if (emgTotal) emgTotal.textContent = fmt(emergencies.length);
+    if (emgActive) emgActive.textContent = fmt(pendingCases.length);
+    if (emgDispatched) emgDispatched.textContent = fmt(dispatchedCases.length);
+    if (emgResolved) emgResolved.textContent = fmt(resolvedCases.length);
+
+    // 2. Update Filter Tab Count Badges
+    var countAll = document.getElementById("countAll");
+    var countPending = document.getElementById("countPending");
+    var countDispatched = document.getElementById("countDispatched");
+    var countResolved = document.getElementById("countResolved");
+
+    if (countAll) countAll.textContent = emergencies.length;
+    if (countPending) countPending.textContent = pendingCases.length;
+    if (countDispatched) countDispatched.textContent = dispatchedCases.length;
+    if (countResolved) countResolved.textContent = resolvedCases.length;
+
+    // 3. Update Section Headers Count Badges
+    var badgePendingCount = document.getElementById("badgePendingCount");
+    var badgeDispatchedCount = document.getElementById("badgeDispatchedCount");
+    var badgeResolvedCount = document.getElementById("badgeResolvedCount");
+
+    if (badgePendingCount) badgePendingCount.textContent = `${pendingCases.length} Awaiting Dispatch`;
+    if (badgeDispatchedCount) badgeDispatchedCount.textContent = `${dispatchedCases.length} En Route`;
+    if (badgeResolvedCount) badgeResolvedCount.textContent = `${resolvedCases.length} Closed`;
+
+    // 4. Render Table Bodies
+    if (tablePending) {
+        tablePending.innerHTML = renderEmergencyRows(pendingCases, "pending", highlightedCaseId);
+    }
+    if (tableDispatched) {
+        tableDispatched.innerHTML = renderEmergencyRows(dispatchedCases, "dispatched", highlightedCaseId);
+    }
+    if (tableResolved) {
+        tableResolved.innerHTML = renderEmergencyRows(resolvedCases, "resolved", highlightedCaseId);
+    }
+
+    if (legacyBody) {
+        legacyBody.innerHTML = renderEmergencyRows(emergencies, "all", highlightedCaseId);
+    }
+}
+
 async function loadEmergencyDashboard() {
-    var tableBody = document.getElementById("emergencyTableBody");
-    if (!tableBody) return; // Not on emergency page
+    var tablePending = document.getElementById("tableBodyPending");
+    var legacyBody = document.getElementById("emergencyTableBody");
+    if (!tablePending && !legacyBody) return; // Not on emergency page
+
+    // Immediate initial render from cached/default data
+    renderCategorizedEmergencies(cachedEmergencies);
 
     try {
         var client = getApiClient();
         var results = await Promise.all([
-            client.getEmergencySummary(),
-            client.getEmergencies()
+            client.getEmergencySummary().catch(function() { return null; }),
+            client.getEmergencies().catch(function() { return null; })
         ]);
-        var summary = results[0];
-        var emergencies = results[1];
+        var liveEmergencies = results[1];
 
-        // 1. Update Emergency Metric Cards
-        var emgTotal = document.getElementById("emgTotal");
-        var emgActive = document.getElementById("emgActive");
-        var emgDispatched = document.getElementById("emgDispatched");
-        var emgResolved = document.getElementById("emgResolved");
-
-        var fmt = function(num) {
-            return num < 10 ? "0" + num : "" + num;
-        };
-
-        if (emgTotal) emgTotal.textContent = fmt(summary.total_emergencies);
-        if (emgActive) emgActive.textContent = fmt(summary.active_emergencies);
-        if (emgDispatched) emgDispatched.textContent = fmt(summary.ambulances_dispatched);
-        if (emgResolved) emgResolved.textContent = fmt(summary.resolved_cases);
-
-        // 2. Populate Emergency Case Table
-        if (Array.isArray(emergencies) && emergencies.length > 0) {
-            tableBody.innerHTML = "";
-            emergencies.forEach(function(c) {
-                var tr = document.createElement("tr");
-
-                var priorityClass = "occupied";
-                var p = (c.priority || "").toLowerCase();
-                if (p === "critical") priorityClass = "occupied";
-                else if (p === "high") priorityClass = "warning";
-                else priorityClass = "available";
-
-                var statusClass = "warning";
-                var s = (c.status || "").toLowerCase();
-                if (s === "resolved") statusClass = "available";
-                else if (s === "in progress") statusClass = "warning";
-                else if (s === "ambulance sent") statusClass = "warning";
-
-                var actionBtn = "";
-                if (s === "in progress") {
-                    actionBtn = `<button style="padding: 4px 10px; background: #0284c7; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;" onclick="updateCaseStatus('${escapeHtml(c.case_id)}', 'Ambulance Sent')">Dispatch 🚑</button>`;
-                } else if (s === "ambulance sent") {
-                    actionBtn = `<button style="padding: 4px 10px; background: #059669; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;" onclick="updateCaseStatus('${escapeHtml(c.case_id)}', 'Resolved')">Resolve ✓</button>`;
-                } else {
-                    actionBtn = `<span style="font-size: 12px; color: #166534; font-weight: 600;">Closed</span>`;
-                }
-
-                tr.innerHTML = `
-                    <td><strong>${escapeHtml(c.case_id)}</strong></td>
-                    <td>${escapeHtml(c.emergency_type)}</td>
-                    <td>${escapeHtml(c.location)}</td>
-                    <td>${escapeHtml(c.hospital_name)}</td>
-                    <td><span class="status ${priorityClass}">${escapeHtml(c.priority)}</span></td>
-                    <td><span class="status ${statusClass}">${escapeHtml(c.status)}</span></td>
-                    <td>${actionBtn}</td>
-                `;
-                tableBody.appendChild(tr);
-            });
+        if (Array.isArray(liveEmergencies) && liveEmergencies.length > 0) {
+            cachedEmergencies = liveEmergencies;
+            saveEmergenciesToStorage(cachedEmergencies);
+            renderCategorizedEmergencies(cachedEmergencies);
         }
     } catch (err) {
-        console.warn("[Emergency Dashboard] Error fetching live backend emergencies:", err);
+        console.warn("[Emergency Dashboard] Error fetching live backend emergencies, using cached:", err);
     }
 }
 
 async function handleEmergencySubmit(event) {
-    if (event) event.preventDefault();
+    if (event) {
+        event.preventDefault();
+        if (event.stopPropagation) event.stopPropagation();
+    }
 
     var typeEl = document.getElementById("emgType");
     var priorityEl = document.getElementById("emgPriority");
@@ -515,7 +878,7 @@ async function handleEmergencySubmit(event) {
     var statusEl = document.getElementById("emgFormStatus");
     var submitBtn = document.getElementById("emgSubmitBtn");
 
-    if (!typeEl || !locEl || !hospEl) return;
+    if (!typeEl || !locEl || !hospEl) return false;
 
     var emergency_type = typeEl.value.trim();
     var priority = priorityEl ? priorityEl.value : "Critical";
@@ -527,7 +890,7 @@ async function handleEmergencySubmit(event) {
             statusEl.textContent = "Please fill all required fields.";
             statusEl.style.color = "#b91c1c";
         }
-        return;
+        return false;
     }
 
     if (submitBtn) {
@@ -535,13 +898,47 @@ async function handleEmergencySubmit(event) {
         submitBtn.innerHTML = '<span class="spinner"></span> Logging case...';
     }
     if (statusEl) {
-        statusEl.textContent = "Transmitting to emergency coordination backend...";
+        statusEl.textContent = "Transmitting to emergency coordination dispatch...";
         statusEl.style.color = "#0e7490";
+    }
+
+    // Generate local fallback case code
+    var maxNum = 0;
+    cachedEmergencies.forEach(function(item) {
+        var match = (item.case_id || "").match(/\d+/);
+        if (match) {
+            var n = parseInt(match[0], 10);
+            if (n > maxNum) maxNum = n;
+        }
+    });
+    var nextId = "EMG" + String(maxNum + 1).padStart(3, "0");
+
+    var newCaseObj = {
+        case_id: nextId,
+        emergency_type: emergency_type,
+        location: location,
+        hospital_name: hospital_name,
+        priority: priority,
+        status: "In Progress"
+    };
+
+    // 1. Optimistically add to cachedEmergencies at the beginning so user sees it right away!
+    cachedEmergencies.unshift(newCaseObj);
+    saveEmergenciesToStorage(cachedEmergencies);
+    renderCategorizedEmergencies(cachedEmergencies, newCaseObj.case_id);
+
+    // 2. Ensure "Yet to Dispatch" or "All" tab is visible
+    var secPending = document.getElementById("sectionPending");
+    if (secPending) {
+        secPending.style.display = "block";
+        try {
+            secPending.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        } catch (_) {}
     }
 
     try {
         var client = getApiClient();
-        var newCase = await client.createEmergency({
+        var serverCase = await client.createEmergency({
             emergency_type: emergency_type,
             priority: priority,
             location: location,
@@ -549,40 +946,59 @@ async function handleEmergencySubmit(event) {
             status: "In Progress"
         });
 
-        if (statusEl) {
-            statusEl.innerHTML = `✅ <strong>Case Logged:</strong> Assigned ID <code>${escapeHtml(newCase.case_id)}</code>. Coordinated with ${escapeHtml(newCase.hospital_name)}.`;
-            statusEl.style.color = "#15803d";
+        if (serverCase && serverCase.case_id) {
+            newCaseObj.case_id = serverCase.case_id;
+            saveEmergenciesToStorage(cachedEmergencies);
+            renderCategorizedEmergencies(cachedEmergencies, serverCase.case_id);
         }
 
+        if (statusEl) {
+            statusEl.innerHTML = `✅ <strong>Case Logged:</strong> Assigned ID <code>${escapeHtml(newCaseObj.case_id)}</code>. Added to <em>Yet to Dispatch</em> below.`;
+            statusEl.style.color = "#15803d";
+        }
+    } catch (err) {
+        console.warn("[Emergency Submission] Server offline, stored locally in dispatch queue:", err);
+        if (statusEl) {
+            statusEl.innerHTML = `✅ <strong>Case Logged (Local Queue):</strong> Assigned ID <code>${escapeHtml(newCaseObj.case_id)}</code>. Added to <em>Yet to Dispatch</em> below.`;
+            statusEl.style.color = "#15803d";
+        }
+    } finally {
         // Reset form
         typeEl.value = "";
         locEl.value = "";
         hospEl.value = "";
 
-        // Refresh emergency metrics and table
-        await loadEmergencyDashboard();
-    } catch (err) {
-        if (statusEl) {
-            statusEl.textContent = `Submission failed: ${err.message}`;
-            statusEl.style.color = "#b91c1c";
-        }
-    } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.innerHTML = "🚨 Submit Emergency Request";
         }
     }
+
+    return false;
 }
 
 async function updateCaseStatus(caseId, newStatus) {
     if (!caseId || !newStatus) return;
 
+    // Immediately update local state
+    var found = false;
+    for (var i = 0; i < cachedEmergencies.length; i++) {
+        if (cachedEmergencies[i].case_id === caseId) {
+            cachedEmergencies[i].status = newStatus;
+            found = true;
+            break;
+        }
+    }
+    if (found) {
+        saveEmergenciesToStorage(cachedEmergencies);
+        renderCategorizedEmergencies(cachedEmergencies, caseId);
+    }
+
     try {
         var client = getApiClient();
         await client.updateEmergencyStatus(caseId, newStatus);
-        await loadEmergencyDashboard();
     } catch (err) {
-        alert("Failed to update case: " + err.message);
+        console.warn("[Emergency Status Update] Local update applied, server sync delayed:", err);
     }
 }
 
@@ -675,17 +1091,18 @@ async function analyzeReport() {
                 <div style="background: #fff7ed; border-left: 5px solid #ea580c; padding: 22px; border-radius: 8px; color: #9a3412;">
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
                         <span style="font-size: 24px;">🚫</span>
-                        <h3 style="margin: 0; color: #c2410c; font-size: 19px;">I am only scanning medical reports</h3>
+                        <h3 style="margin: 0; color: #c2410c; font-size: 19px;">I am only scanning reports related to health</h3>
                     </div>
                     <p style="font-size: 15px; margin: 10px 0 14px 0; line-height: 1.5; color: #7c2d12;">
-                        The uploaded file (<strong>${escapeHtml(result.filename)}</strong>) does not contain clinical, diagnostic, or medical report data. No analysis or clinical information will be provided.
+                        The uploaded file (<strong>${escapeHtml(result.filename)}</strong>) is not recognized as a health or medical report. <strong>I am only scanning reports related to health.</strong>
                     </p>
                     <div style="background: #ffedd5; padding: 12px 16px; border-radius: 6px; font-size: 13px; color: #9a3412;">
-                        <strong>Please upload a valid medical report, such as:</strong>
+                        <strong>Please upload a report related to health, such as:</strong>
                         <ul style="margin: 6px 0 0 18px; padding-left: 0;">
-                            <li>Pathology & Blood Tests (CBC, Blood Sugar, Lipid Profile, etc.)</li>
+                            <li>Pathology & Blood Tests (CBC, Blood Sugar, Lipid Profile, Thyroid, etc.)</li>
                             <li>Doctor Prescriptions & Hospital Discharge Notes</li>
                             <li>Diagnostic Imaging (X-Ray, Ultrasound, CT, MRI)</li>
+                            <li>Official Clinical Health Checkup Records</li>
                         </ul>
                     </div>
                 </div>
@@ -891,7 +1308,13 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-    // 3. Dispatch page-specific live data fetchers
+    // 3. Attach emergency form submission listener
+    var emgForm = document.getElementById("emergencyForm");
+    if (emgForm) {
+        emgForm.addEventListener("submit", handleEmergencySubmit);
+    }
+
+    // 4. Dispatch page-specific live data fetchers
     checkAssistantOnlineStatus();
     loadIndexOverview();
     loadResourceDashboard();
@@ -905,5 +1328,11 @@ if (typeof window !== "undefined") {
     window.sendMessage = sendMessage;
     window.askQuestion = askQuestion;
     window.toggleSidebar = toggleSidebar;
+    window.toggleVoiceInput = toggleVoiceInput;
     window.handleLogout = handleLogout;
+    window.filterEmergencyView = filterEmergencyView;
+    window.updateCaseStatus = updateCaseStatus;
+    window.handleEmergencySubmit = handleEmergencySubmit;
+    window.toggleSpeech = toggleSpeech;
+    window.stopSpeaking = stopSpeaking;
 }

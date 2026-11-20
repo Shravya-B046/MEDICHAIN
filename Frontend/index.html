@@ -5,16 +5,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MEDICHAIN | Smart Healthcare Platform</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=10.0">
+
     <script>
         // Auth Guard: Require login before accessing dashboard
-        (function() {
+        (function () {
             var auth = localStorage.getItem("medichain_auth") || sessionStorage.getItem("medichain_auth");
             if (!auth) {
                 window.location.replace("login.html");
             }
         })();
     </script>
+
     <script src="js/api.js"></script>
 </head>
 
@@ -27,6 +29,7 @@
 
             <div class="sidebar-header">
                 <div class="logo">
+                    <img src="images/medichain-logo.png" alt="MEDICHAIN Logo" class="brand-logo">
                     <span class="logo-full">MEDI<span>CHAIN</span></span>
                     <span class="logo-short">M<span>C</span></span>
                 </div>
@@ -35,12 +38,23 @@
             <h4>MAIN MENU</h4>
 
             <ul>
-                <li><a href="index.html" class="active" title="Dashboard"><span class="nav-icon">🏠</span><span class="nav-text"> Dashboard</span></a></li>
-                <li><a href="assistant.html" title="AI Health Assistant"><span class="nav-icon">🩺</span><span class="nav-text"> AI Health Assistant</span></a></li>
-                <li><a href="resources.html" title="Hospital Resources"><span class="nav-icon">🏥</span><span class="nav-text"> Hospital Resources</span></a></li>
-                <li><a href="emergency.html" title="Emergency Coordination"><span class="nav-icon">🚨</span><span class="nav-text"> Emergency Coordination</span></a></li>
-                <li><a href="reports.html" title="Report Analysis"><span class="nav-icon">📄</span><span class="nav-text"> Report Analysis</span></a></li>
-                <li><a href="admin.html" title="Admin Panel"><span class="nav-icon">⚙️</span><span class="nav-text"> Admin Panel</span></a></li>
+                <li><a href="index.html" class="active" title="Dashboard"><span class="nav-icon">🏠</span><span
+                            class="nav-text"> Dashboard</span></a></li>
+
+                <li><a href="assistant.html" title="AI Health Assistant"><span class="nav-icon">🩺</span><span
+                            class="nav-text"> AI Health Assistant</span></a></li>
+
+                <li><a href="resources.html" title="Hospital Resources"><span class="nav-icon">🏥</span><span
+                            class="nav-text"> Hospital Resources</span></a></li>
+
+                <li><a href="emergency.html" title="Emergency Coordination"><span class="nav-icon">🚨</span><span
+                            class="nav-text"> Emergency Coordination</span></a></li>
+
+                <li><a href="reports.html" title="Report Analysis"><span class="nav-icon">📄</span><span
+                            class="nav-text"> Report Analysis</span></a></li>
+
+                <li><a href="admin.html" title="Admin Panel"><span class="nav-icon">⚙️</span><span class="nav-text">
+                            Admin Panel</span></a></li>
             </ul>
 
         </aside>
@@ -53,29 +67,36 @@
             <header class="topbar">
 
                 <div style="display: flex; align-items: center; gap: 15px;">
+
                     <button class="topbar-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
                         ☰
                     </button>
+
                     <div>
                         <h2>Healthcare Dashboard</h2>
                         <p>Welcome to your smart healthcare platform.</p>
                     </div>
+
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 10px;">
+
                     <button class="profile" onclick="window.location.href='admin.html'">
                         👤 Admin
                     </button>
-                    <button class="profile logout-btn" onclick="handleLogout()" style="cursor: pointer; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; font-weight: bold;">
+
+                    <button class="profile logout-btn" onclick="handleLogout()"
+                        style="cursor: pointer; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; font-weight: bold;">
                         🚪 Logout
                     </button>
+
                 </div>
 
             </header>
 
 
             <!-- Welcome Section -->
-            <section class="welcome">
+            <section class="welcome" style="background: linear-gradient(to right, #171E57 0%, #24338F 25%, #2F5CA3 50%, #3B8DAE 75%, #2EBFB7 100%) !important; color: white !important;">
 
                 <h2>Welcome to MEDICHAIN 👋</h2>
 
@@ -192,18 +213,12 @@
                 </div>
 
             </section>
-
-            <p class="disclaimer">
-                All statistics on this page are demonstration data only and do not reflect live hospital availability or
-                real emergency counts.
-            </p>
-
         </main>
 
     </div>
 
     <script src="js/api.js"></script>
-    <script src="js/script.js"></script>
+    <script src="js/script.js?v=10.0"></script>
 
 </body>
 

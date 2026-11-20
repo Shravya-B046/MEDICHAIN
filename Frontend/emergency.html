@@ -1,187 +1,342 @@
-
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Emergency Coordination | MEDICHAIN</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=10.0">
     <script>
-        (function() {
+        (function () {
             var auth = localStorage.getItem("medichain_auth") || sessionStorage.getItem("medichain_auth");
             if (!auth) { window.location.replace("login.html"); }
         })();
     </script>
     <script src="js/api.js"></script>
 </head>
+
 <body>
 
-<div class="dashboard">
+    <div class="dashboard">
 
-    <aside class="sidebar">
+        <aside class="sidebar">
 
-        <div class="sidebar-header">
-            <div class="logo">
-                <span class="logo-full">MEDI<span>CHAIN</span></span>
-                <span class="logo-short">M<span>C</span></span>
-            </div>
-        </div>
-
-        <h4>MAIN MENU</h4>
-
-        <ul>
-            <li><a href="index.html" title="Dashboard"><span class="nav-icon">🏠</span><span class="nav-text"> Dashboard</span></a></li>
-            <li><a href="assistant.html" title="AI Health Assistant"><span class="nav-icon">🩺</span><span class="nav-text"> AI Health Assistant</span></a></li>
-            <li><a href="resources.html" title="Hospital Resources"><span class="nav-icon">🏥</span><span class="nav-text"> Hospital Resources</span></a></li>
-            <li><a href="emergency.html" class="active" title="Emergency Coordination"><span class="nav-icon">🚨</span><span class="nav-text"> Emergency Coordination</span></a></li>
-            <li><a href="reports.html" title="Report Analysis"><span class="nav-icon">📄</span><span class="nav-text"> Report Analysis</span></a></li>
-            <li><a href="admin.html" title="Admin Panel"><span class="nav-icon">⚙️</span><span class="nav-text"> Admin Panel</span></a></li>
-        </ul>
-
-    </aside>
-
-    <main class="main-content">
-
-        <header class="topbar">
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <button class="topbar-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
-                    ☰
-                </button>
-                <h2>Emergency Coordination</h2>
-            </div>
-            <div>
-                <button class="profile logout-btn" onclick="handleLogout()" style="cursor: pointer; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; font-weight: bold;">
-                    🚪 Logout
-                </button>
-            </div>
-        </header>
-        <section class="welcome">
-            <h1>Emergency Response Center</h1>
-            <p>Monitor emergency requests and coordinate hospital responses.</p>
-        </section>
-
-        <h2 class="section-title">Emergency Overview</h2>
-
-        <section class="stats">
-            <div class="stat-card">
-                <h3 id="emgTotal">08</h3>
-                <p>Total Emergencies</p>
-                <p class="demo-label">Demo data</p>
-            </div>
-
-            <div class="stat-card">
-                <h3 id="emgActive">03</h3>
-                <p>Active Emergencies</p>
-                <p class="demo-label">Demo data</p>
-            </div>
-
-            <div class="stat-card">
-                <h3 id="emgDispatched">02</h3>
-                <p>Ambulances Dispatched</p>
-                <p class="demo-label">Demo data</p>
-            </div>
-
-            <div class="stat-card">
-                <h3 id="emgResolved">05</h3>
-                <p>Resolved Cases</p>
-                <p class="demo-label">Demo data</p>
-            </div>
-        </section>
-
-        <!-- Log New Emergency Request Section -->
-        <h2 class="section-title">Initiate Emergency Coordination</h2>
-
-        <section class="feature-card" style="margin-bottom: 25px;">
-            <h3>Request Emergency Coordination</h3>
-            <p>Submit an emergency incident to coordinate response with nearest connected medical facilities.</p>
-            <p style="font-size: 12px; color: #b91c1c; margin-top: 4px;">⚠️ Prototype demo only. For real medical emergencies, dial 112 immediately.</p>
-
-            <form id="emergencyForm" onsubmit="handleEmergencySubmit(event)" style="margin-top: 15px; display: grid; gap: 12px; max-width: 650px;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div>
-                        <label for="emgType" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">Emergency Type *</label>
-                        <select id="emgType" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
-                            <option value="">Select type...</option>
-                            <option value="Road Accident">Road Accident</option>
-                            <option value="Cardiac Emergency">Cardiac Emergency</option>
-                            <option value="Respiratory Distress">Respiratory Distress</option>
-                            <option value="Stroke Symptoms">Stroke Symptoms</option>
-                            <option value="Trauma / Fall">Trauma / Fall</option>
-                            <option value="General Acute Emergency">General Acute Emergency</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label for="emgPriority" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">Triage Priority *</label>
-                        <select id="emgPriority" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
-                            <option value="Critical">Critical (Immediate)</option>
-                            <option value="High">High (Urgent)</option>
-                            <option value="Medium">Medium</option>
-                            <option value="Low">Low</option>
-                        </select>
-                    </div>
+            <div class="sidebar-header">
+                <div class="logo">
+                    <img src="images/medichain-logo.png" alt="MEDICHAIN Logo" class="brand-logo">
+                    <span class="logo-full">MEDI<span>CHAIN</span></span>
+                    <span class="logo-short">M<span>C</span></span>
                 </div>
+            </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div>
-                        <label for="emgLocation" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">Incident Location *</label>
-                        <input type="text" id="emgLocation" placeholder="e.g. Kadri Toll Gate, Mangaluru" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
-                    </div>
+            <h4>MAIN MENU</h4>
 
-                    <div>
-                        <label for="emgHospital" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">Destination / Nearby Hospital *</label>
-                        <input type="text" id="emgHospital" placeholder="e.g. City Hospital" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
-                    </div>
-                </div>
+            <ul>
+                <li><a href="index.html" title="Dashboard"><span class="nav-icon">🏠</span><span class="nav-text">
+                            Dashboard</span></a></li>
+                <li><a href="assistant.html" title="AI Health Assistant"><span class="nav-icon">🩺</span><span
+                            class="nav-text"> AI Health Assistant</span></a></li>
+                <li><a href="resources.html" title="Hospital Resources"><span class="nav-icon">🏥</span><span
+                            class="nav-text"> Hospital Resources</span></a></li>
+                <li><a href="emergency.html" class="active" title="Emergency Coordination"><span
+                            class="nav-icon">🚨</span><span class="nav-text"> Emergency Coordination</span></a></li>
+                <li><a href="reports.html" title="Report Analysis"><span class="nav-icon">📄</span><span
+                            class="nav-text"> Report Analysis</span></a></li>
+                <li><a href="admin.html" title="Admin Panel"><span class="nav-icon">⚙️</span><span class="nav-text">
+                            Admin Panel</span></a></li>
+            </ul>
 
-                <div style="margin-top: 6px; display: flex; align-items: center; gap: 12px;">
-                    <button type="submit" id="emgSubmitBtn" style="padding: 10px 18px; background: #dc2626; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
-                        🚨 Submit Emergency Request
+        </aside>
+
+        <main class="main-content">
+
+            <header class="topbar">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <button class="topbar-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
+                        ☰
                     </button>
-                    <span id="emgFormStatus" style="font-size: 13px; font-weight: 500;"></span>
+                    <h2>Emergency Coordination</h2>
                 </div>
-            </form>
-        </section>
+                <div>
+                    <button class="profile logout-btn" onclick="handleLogout()"
+                        style="cursor: pointer; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; font-weight: bold;">
+                        🚪 Logout
+                    </button>
+                </div>
+            </header>
+            <section class="welcome" style="background: linear-gradient(to right, #171E57 0%, #24338F 25%, #2F5CA3 50%, #3B8DAE 75%, #2EBFB7 100%) !important; color: white !important;">
+                <h1>Emergency Response Center</h1>
+                <p>Monitor emergency requests and coordinate hospital responses.</p>
+            </section>
 
-        <h2 class="section-title">Emergency Requests</h2>
+            <h2 class="section-title">Emergency Overview</h2>
 
-        <section class="resource-table">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Case ID</th>
-                        <th>Emergency Type</th>
-                        <th>Location</th>
-                        <th>Hospital</th>
-                        <th>Priority</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
+            <section class="stats">
+                <div class="stat-card">
+                    <h3 id="emgTotal">08</h3>
+                    <p>Total Emergencies</p>
+                    <p class="demo-label">Demo data</p>
+                </div>
 
-                <tbody id="emergencyTableBody">
-                    <tr>
-                        <td>EMG001</td>
-                        <td>Road Accident</td>
-                        <td>Mangaluru</td>
-                        <td>City Hospital</td>
-                        <td><span class="status occupied">Critical</span></td>
-                        <td><span class="status warning">In Progress</span></td>
-                        <td><button class="status warning" onclick="updateCaseStatus('EMG001', 'Ambulance Sent')">Dispatch</button></td>
-                    </tr>
-                </tbody>
+                <div class="stat-card">
+                    <h3 id="emgActive">03</h3>
+                    <p>Active Emergencies</p>
+                    <p class="demo-label">Demo data</p>
+                </div>
+
+                <div class="stat-card">
+                    <h3 id="emgDispatched">02</h3>
+                    <p>Ambulances Dispatched</p>
+                    <p class="demo-label">Demo data</p>
+                </div>
+
+                <div class="stat-card">
+                    <h3 id="emgResolved">05</h3>
+                    <p>Resolved Cases</p>
+                    <p class="demo-label">Demo data</p>
+                </div>
+            </section>
+
+            <!-- Log New Emergency Request Section -->
+            <h2 class="section-title">Initiate Emergency Coordination</h2>
+
+            <section class="feature-card" style="margin-bottom: 25px;">
+                <h3>Request Emergency Coordination</h3>
+                <p>Submit an emergency incident to coordinate response with nearest connected medical facilities.</p>
+                <p style="font-size: 12px; color: #b91c1c; margin-top: 4px;">⚠️ Prototype demo only. For real medical
+                    emergencies, dial 112 immediately.</p>
+
+                <form id="emergencyForm" onsubmit="handleEmergencySubmit(event); return false;"
+                    style="margin-top: 15px; display: grid; gap: 12px; max-width: 650px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div>
+                            <label for="emgType"
+                                style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">Emergency
+                                Type *</label>
+                            <select id="emgType" required
+                                style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                                <option value="">Select type...</option>
+                                <option value="Road Accident">Road Accident</option>
+                                <option value="Cardiac Emergency">Cardiac Emergency</option>
+                                <option value="Respiratory Distress">Respiratory Distress</option>
+                                <option value="Stroke Symptoms">Stroke Symptoms</option>
+                                <option value="Trauma / Fall">Trauma / Fall</option>
+                                <option value="General Acute Emergency">General Acute Emergency</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="emgPriority"
+                                style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">Triage
+                                Priority *</label>
+                            <select id="emgPriority" required
+                                style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                                <option value="Critical">Critical (Immediate)</option>
+                                <option value="High">High (Urgent)</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Low">Low</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div>
+                            <label for="emgLocation"
+                                style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">Incident
+                                Location *</label>
+                            <input type="text" id="emgLocation" placeholder="e.g. Kadri Toll Gate, Mangaluru" required
+                                style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                        </div>
+
+                        <div>
+                            <label for="emgHospital"
+                                style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">Destination
+                                / Nearby Hospital *</label>
+                            <input type="text" id="emgHospital" placeholder="e.g. City Hospital" required
+                                style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 6px; display: flex; align-items: center; gap: 12px;">
+                        <button type="submit" id="emgSubmitBtn"
+                            style="padding: 10px 18px; background: #dc2626; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                            🚨 Submit Emergency Request
+                        </button>
+                        <span id="emgFormStatus" style="font-size: 13px; font-weight: 500;"></span>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Filter Tabs / Mode Switcher -->
+            <div class="emergency-filter-container">
+                <div>
+                    <h2 class="section-title" style="margin-bottom: 2px;">Emergency Response Coordination</h2>
+                    <p style="color: #64748b; font-size: 13px; margin: 0;">Categorized by dispatch stage and operational
+                        status.</p>
+                </div>
+                <div class="emergency-filter-tabs">
+                    <button type="button" class="emg-tab-btn active" onclick="filterEmergencyView('all')"
+                        id="tabBtnAll">
+                        All Cases <span class="emg-tab-pill" id="countAll">0</span>
+                    </button>
+                    <button type="button" class="emg-tab-btn" onclick="filterEmergencyView('pending')"
+                        id="tabBtnPending">
+                        ⏳ Yet to Dispatch <span class="emg-tab-pill pill-amber" id="countPending">0</span>
+                    </button>
+                    <button type="button" class="emg-tab-btn" onclick="filterEmergencyView('dispatched')"
+                        id="tabBtnDispatched">
+                        🚑 Ambulance Dispatched <span class="emg-tab-pill pill-blue" id="countDispatched">0</span>
+                    </button>
+                    <button type="button" class="emg-tab-btn" onclick="filterEmergencyView('resolved')"
+                        id="tabBtnResolved">
+                        ✅ Resolved & Closed <span class="emg-tab-pill pill-green" id="countResolved">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- SECTION 1: YET TO DISPATCH -->
+            <section class="emergency-section-card section-pending" id="sectionPending">
+                <div class="emergency-section-header">
+                    <div class="emergency-section-title">
+                        <span class="section-icon">⏳</span>
+                        <div>
+                            <h3>Yet to Dispatch (Action Required)</h3>
+                            <p>New emergency incidents awaiting immediate ambulance assignment and dispatch</p>
+                        </div>
+                    </div>
+                    <span class="section-counter-badge badge-amber" id="badgePendingCount">0 Pending</span>
+                </div>
+                <div class="resource-table" style="box-shadow: none; margin-bottom: 0;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Case ID</th>
+                                <th>Emergency Type</th>
+                                <th>Incident Location</th>
+                                <th>Designated Hospital</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBodyPending">
+                            <tr>
+                                <td><strong>EMG004</strong></td>
+                                <td>Accident</td>
+                                <td>Surathkal</td>
+                                <td>City Hospital</td>
+                                <td><span class="status warning">High</span></td>
+                                <td><span class="status warning">In Progress</span></td>
+                                <td><button class="emg-btn-dispatch"
+                                        onclick="updateCaseStatus('EMG004', 'Ambulance Sent')">Dispatch 🚑</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- SECTION 2: AMBULANCE DISPATCHED -->
+            <section class="emergency-section-card section-dispatched" id="sectionDispatched">
+                <div class="emergency-section-header">
+                    <div class="emergency-section-title">
+                        <span class="section-icon">🚑</span>
+                        <div>
+                            <h3>Ambulance Dispatched (En Route)</h3>
+                            <p>Ambulances actively en route to the incident scene or in transit to medical facilities
+                            </p>
+                        </div>
+                    </div>
+                    <span class="section-counter-badge badge-blue" id="badgeDispatchedCount">2 En Route</span>
+                </div>
+                <div class="resource-table" style="box-shadow: none; margin-bottom: 0;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Case ID</th>
+                                <th>Emergency Type</th>
+                                <th>Incident Location</th>
+                                <th>Receiving Hospital</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBodyDispatched">
+                            <tr>
+                                <td><strong>EMG001</strong></td>
+                                <td>Road Accident</td>
+                                <td>Mangaluru</td>
+                                <td>City Hospital</td>
+                                <td><span class="status occupied">Critical</span></td>
+                                <td><span class="status warning">Ambulance Sent</span></td>
+                                <td><button class="emg-btn-resolve"
+                                        onclick="updateCaseStatus('EMG001', 'Resolved')">Resolve ✓</button></td>
+                            </tr>
+                            <tr>
+                                <td><strong>EMG002</strong></td>
+                                <td>Cardiac Emergency</td>
+                                <td>Bantwal</td>
+                                <td>General Hospital</td>
+                                <td><span class="status occupied">Critical</span></td>
+                                <td><span class="status warning">Ambulance Sent</span></td>
+                                <td><button class="emg-btn-resolve"
+                                        onclick="updateCaseStatus('EMG002', 'Resolved')">Resolve ✓</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- SECTION 3: RESOLVED & CLOSED -->
+            <section class="emergency-section-card section-resolved" id="sectionResolved">
+                <div class="emergency-section-header">
+                    <div class="emergency-section-title">
+                        <span class="section-icon">✅</span>
+                        <div>
+                            <h3>Resolved & Closed Emergencies</h3>
+                            <p>Patient successfully delivered, emergency resolved, and medical handover complete</p>
+                        </div>
+                    </div>
+                    <span class="section-counter-badge badge-green" id="badgeResolvedCount">1 Resolved</span>
+                </div>
+                <div class="resource-table" style="box-shadow: none; margin-bottom: 0;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Case ID</th>
+                                <th>Emergency Type</th>
+                                <th>Incident Location</th>
+                                <th>Hospital</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                                <th>Outcome</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBodyResolved">
+                            <tr>
+                                <td><strong>EMG003</strong></td>
+                                <td>Medical Emergency</td>
+                                <td>Udupi</td>
+                                <td>District Hospital</td>
+                                <td><span class="status available">Medium</span></td>
+                                <td><span class="status available">Resolved</span></td>
+                                <td><span class="badge-status-closed">Closed ✓</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Hidden legacy tbody for backward compatibility -->
+            <table style="display: none;">
+                <tbody id="emergencyTableBody"></tbody>
             </table>
-        </section>
 
-        <p class="disclaimer">
-            Demonstration data only. This page is not connected to live emergency services.
-            For a real emergency in India, call 112.
-        </p>
+        </main>
+    </div>
 
-    </main>
-</div>
-
-<script src="js/api.js"></script>
-<script src="js/script.js"></script>
+    <script src="js/api.js?v=9.0"></script>
+    <script src="js/script.js?v=10.0"></script>
 </body>
+
 </html>

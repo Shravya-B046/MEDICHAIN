@@ -1,13 +1,13 @@
-
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hospital Resources | MEDICHAIN</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=10.0">
     <script>
-        (function() {
+        (function () {
             var auth = localStorage.getItem("medichain_auth") || sessionStorage.getItem("medichain_auth");
             if (!auth) { window.location.replace("login.html"); }
         })();
@@ -17,221 +17,216 @@
 
 <body>
 
-<div class="dashboard">
+    <div class="dashboard">
 
-    <!-- Sidebar -->
-    <aside class="sidebar">
+        <!-- Sidebar -->
+        <aside class="sidebar">
 
-        <div class="sidebar-header">
-            <div class="logo">
-                <span class="logo-full">MEDI<span>CHAIN</span></span>
-                <span class="logo-short">M<span>C</span></span>
-            </div>
-        </div>
-
-        <h4>MAIN MENU</h4>
-
-        <ul>
-            <li><a href="index.html" title="Dashboard"><span class="nav-icon">🏠</span><span class="nav-text"> Dashboard</span></a></li>
-            <li><a href="assistant.html" title="AI Health Assistant"><span class="nav-icon">🩺</span><span class="nav-text"> AI Health Assistant</span></a></li>
-            <li><a href="resources.html" class="active" title="Hospital Resources"><span class="nav-icon">🏥</span><span class="nav-text"> Hospital Resources</span></a></li>
-            <li><a href="emergency.html" title="Emergency Coordination"><span class="nav-icon">🚨</span><span class="nav-text"> Emergency Coordination</span></a></li>
-            <li><a href="reports.html" title="Report Analysis"><span class="nav-icon">📄</span><span class="nav-text"> Report Analysis</span></a></li>
-            <li><a href="admin.html" title="Admin Panel"><span class="nav-icon">⚙️</span><span class="nav-text"> Admin Panel</span></a></li>
-        </ul>
-
-    </aside>
-
-
-    <!-- Main Content -->
-    <main class="main-content">
-
-        <header class="topbar">
-
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <button class="topbar-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
-                    ☰
-                </button>
-                <div>
-                    <h2>Hospital Resource Dashboard</h2>
-                    <p>Monitor and manage hospital resources.</p>
+            <div class="sidebar-header">
+                <div class="logo">
+                    <img src="images/medichain-logo.png" alt="MEDICHAIN Logo" class="brand-logo">
+                    <span class="logo-full">MEDI<span>CHAIN</span></span>
+                    <span class="logo-short">M<span>C</span></span>
                 </div>
             </div>
 
-            <div>
-                <button class="profile logout-btn" onclick="handleLogout()" style="cursor: pointer; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; font-weight: bold;">
-                    🚪 Logout
-                </button>
+            <h4>MAIN MENU</h4>
+
+            <ul>
+                <li><a href="index.html" title="Dashboard"><span class="nav-icon">🏠</span><span class="nav-text">
+                            Dashboard</span></a></li>
+                <li><a href="assistant.html" title="AI Health Assistant"><span class="nav-icon">🩺</span><span
+                            class="nav-text"> AI Health Assistant</span></a></li>
+                <li><a href="resources.html" class="active" title="Hospital Resources"><span
+                            class="nav-icon">🏥</span><span class="nav-text"> Hospital Resources</span></a></li>
+                <li><a href="emergency.html" title="Emergency Coordination"><span class="nav-icon">🚨</span><span
+                            class="nav-text"> Emergency Coordination</span></a></li>
+                <li><a href="reports.html" title="Report Analysis"><span class="nav-icon">📄</span><span
+                            class="nav-text"> Report Analysis</span></a></li>
+                <li><a href="admin.html" title="Admin Panel"><span class="nav-icon">⚙️</span><span class="nav-text">
+                            Admin Panel</span></a></li>
+            </ul>
+
+        </aside>
+
+
+        <!-- Main Content -->
+        <main class="main-content">
+
+            <header class="topbar">
+
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <button class="topbar-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
+                        ☰
+                    </button>
+                    <div>
+                        <h2>Hospital Resource Dashboard</h2>
+                        <p>Monitor and manage hospital resources.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <button class="profile logout-btn" onclick="handleLogout()"
+                        style="cursor: pointer; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; font-weight: bold;">
+                        🚪 Logout
+                    </button>
+                </div>
+
+            </header>
+
+
+            <!-- Welcome -->
+            <section class="welcome" style="background: linear-gradient(to right, #171E57 0%, #24338F 25%, #2F5CA3 50%, #3B8DAE 75%, #2EBFB7 100%) !important; color: white !important;">
+
+                <h2>Hospital Overview 🏥</h2>
+
+                <p>
+                    Monitor bed availability, ICU capacity,
+                    medical staff and emergency transportation
+                    from one centralized dashboard.
+                </p>
+
+            </section>
+
+
+            <!-- Resource Statistics -->
+            <h3 class="section-title">Resource Availability</h3>
+
+            <section class="stats">
+
+                <div class="stat-card">
+                    <h3>🛏️ Total Beds</h3>
+                    <h1 id="resTotalBeds">250</h1>
+                    <p>Registered beds</p>
+                    <p class="demo-label">Demo data</p>
+                </div>
+
+                <div class="stat-card">
+                    <h3>🟢 Available Beds</h3>
+                    <h1 id="resAvailableBeds">186</h1>
+                    <p>Currently available</p>
+                    <p class="demo-label">Demo data</p>
+                </div>
+
+                <div class="stat-card">
+                    <h3>🔴 Occupied Beds</h3>
+                    <h1 id="resOccupiedBeds">64</h1>
+                    <p>Currently occupied</p>
+                    <p class="demo-label">Demo data</p>
+                </div>
+
+                <div class="stat-card">
+                    <h3>🏥 ICU Beds</h3>
+                    <h1 id="resIcuBeds">18</h1>
+                    <p>Available ICU beds</p>
+                    <p class="demo-label">Demo data</p>
+                </div>
+
+                <div class="stat-card">
+                    <h3>👨‍⚕️ Doctors On Duty</h3>
+                    <h1 id="resDoctors">32</h1>
+                    <p>Available medical staff</p>
+                    <p class="demo-label">Demo data</p>
+                </div>
+
+                <div class="stat-card">
+                    <h3>🚑 Available Ambulances</h3>
+                    <h1 id="resAmbulances">08</h1>
+                    <p>Ready for dispatch</p>
+                    <p class="demo-label">Demo data</p>
+                </div>
+
+            </section>
+
+
+            <!-- Resource Details -->
+            <h3 class="section-title">Hospital Resource Details</h3>
+
+            <!-- Resource Controls: Search & Category Filter -->
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; gap: 10px; align-items: center; flex: 1; max-width: 550px;">
+                    <input type="text" id="resourceSearchInput"
+                        placeholder="🔍 Search resources (e.g. ICU, Ventilator, Antibiotics)..."
+                        oninput="filterResources()"
+                        style="flex: 1; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                    <select id="resourceCategoryFilter" onchange="filterResources()"
+                        style="padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; background: white;">
+                        <option value="all">All Categories</option>
+                        <option value="beds">Beds (General & ICU)</option>
+                        <option value="staff">Staff & Ambulances</option>
+                        <option value="equipment">Medical Equipment</option>
+                        <option value="medicine">Medicine & Supplies</option>
+                    </select>
+                </div>
+                <div>
+                    <button onclick="loadResourceDashboard()"
+                        style="padding: 9px 15px; background: #0e7490; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                        🔄 Refresh Data
+                    </button>
+                </div>
             </div>
 
-        </header>
+            <section class="resource-table">
 
+                <table>
 
-        <!-- Welcome -->
-        <section class="welcome">
+                    <thead>
+                        <tr>
+                            <th>Resource</th>
+                            <th>Total</th>
+                            <th>Available</th>
+                            <th>Occupied / In Use</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
 
-            <h2>Hospital Overview 🏥</h2>
+                    <tbody id="resourceTableBody">
 
-            <p>
-                Monitor bed availability, ICU capacity,
-                medical staff and emergency transportation
-                from one centralized dashboard.
-            </p>
+                        <tr>
+                            <td>General Beds</td>
+                            <td>150</td>
+                            <td>120</td>
+                            <td>30</td>
+                            <td><span class="status available">Available</span></td>
+                        </tr>
 
-        </section>
+                        <tr>
+                            <td>ICU Beds</td>
+                            <td>40</td>
+                            <td>18</td>
+                            <td>22</td>
+                            <td><span class="status available">Available</span></td>
+                        </tr>
 
+                        <tr>
+                            <td>Doctors</td>
+                            <td>50</td>
+                            <td>32</td>
+                            <td>18</td>
+                            <td><span class="status available">Available</span></td>
+                        </tr>
 
-        <!-- Resource Statistics -->
-        <h3 class="section-title">Resource Availability</h3>
+                        <tr>
+                            <td>Ambulances</td>
+                            <td>12</td>
+                            <td>8</td>
+                            <td>4</td>
+                            <td><span class="status available">Available</span></td>
+                        </tr>
 
-        <section class="stats">
+                    </tbody>
 
-            <div class="stat-card">
-                <h3>🛏️ Total Beds</h3>
-                <h1 id="resTotalBeds">250</h1>
-                <p>Registered beds</p>
-                <p class="demo-label">Demo data</p>
-            </div>
+                </table>
 
-            <div class="stat-card">
-                <h3>🟢 Available Beds</h3>
-                <h1 id="resAvailableBeds">186</h1>
-                <p>Currently available</p>
-                <p class="demo-label">Demo data</p>
-            </div>
+            </section>
+        </main>
 
-            <div class="stat-card">
-                <h3>🔴 Occupied Beds</h3>
-                <h1 id="resOccupiedBeds">64</h1>
-                <p>Currently occupied</p>
-                <p class="demo-label">Demo data</p>
-            </div>
+    </div>
 
-            <div class="stat-card">
-                <h3>🏥 ICU Beds</h3>
-                <h1 id="resIcuBeds">18</h1>
-                <p>Available ICU beds</p>
-                <p class="demo-label">Demo data</p>
-            </div>
-
-            <div class="stat-card">
-                <h3>👨‍⚕️ Doctors On Duty</h3>
-                <h1 id="resDoctors">32</h1>
-                <p>Available medical staff</p>
-                <p class="demo-label">Demo data</p>
-            </div>
-
-            <div class="stat-card">
-                <h3>🚑 Available Ambulances</h3>
-                <h1 id="resAmbulances">08</h1>
-                <p>Ready for dispatch</p>
-                <p class="demo-label">Demo data</p>
-            </div>
-
-        </section>
-
-
-        <!-- Resource Details -->
-        <h3 class="section-title">Hospital Resource Details</h3>
-
-        <!-- Resource Controls: Search & Category Filter -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
-            <div style="display: flex; gap: 10px; align-items: center; flex: 1; max-width: 550px;">
-                <input
-                    type="text"
-                    id="resourceSearchInput"
-                    placeholder="🔍 Search resources (e.g. ICU, Ventilator, Antibiotics)..."
-                    oninput="filterResources()"
-                    style="flex: 1; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;"
-                >
-                <select
-                    id="resourceCategoryFilter"
-                    onchange="filterResources()"
-                    style="padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; background: white;"
-                >
-                    <option value="all">All Categories</option>
-                    <option value="beds">Beds (General & ICU)</option>
-                    <option value="staff">Staff & Ambulances</option>
-                    <option value="equipment">Medical Equipment</option>
-                    <option value="medicine">Medicine & Supplies</option>
-                </select>
-            </div>
-            <div>
-                <button
-                    onclick="loadResourceDashboard()"
-                    style="padding: 9px 15px; background: #0e7490; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;"
-                >
-                    🔄 Refresh Data
-                </button>
-            </div>
-        </div>
-
-        <section class="resource-table">
-
-            <table>
-
-                <thead>
-                    <tr>
-                        <th>Resource</th>
-                        <th>Total</th>
-                        <th>Available</th>
-                        <th>Occupied / In Use</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-
-                <tbody id="resourceTableBody">
-
-                    <tr>
-                        <td>General Beds</td>
-                        <td>150</td>
-                        <td>120</td>
-                        <td>30</td>
-                        <td><span class="status available">Available</span></td>
-                    </tr>
-
-                    <tr>
-                        <td>ICU Beds</td>
-                        <td>40</td>
-                        <td>18</td>
-                        <td>22</td>
-                        <td><span class="status available">Available</span></td>
-                    </tr>
-
-                    <tr>
-                        <td>Doctors</td>
-                        <td>50</td>
-                        <td>32</td>
-                        <td>18</td>
-                        <td><span class="status available">Available</span></td>
-                    </tr>
-
-                    <tr>
-                        <td>Ambulances</td>
-                        <td>12</td>
-                        <td>8</td>
-                        <td>4</td>
-                        <td><span class="status available">Available</span></td>
-                    </tr>
-
-                </tbody>
-
-            </table>
-
-        </section>
-
-
-        <p class="disclaimer">
-            Demo data only. Actual resource availability must be
-            supplied by connected hospital systems.
-        </p>
-
-    </main>
-
-</div>
-
-<script src="js/api.js"></script>
-<script src="js/script.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/script.js?v=10.0"></script>
 
 </body>
+
 </html>

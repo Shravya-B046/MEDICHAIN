@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,9 +8,63 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>AI Health Assistant | MEDICHAIN</title>
-    <link rel="stylesheet" href="css/style.css?v=3.0">
+    <link rel="stylesheet" href="css/style.css?v=11.0">
+    <style>
+        .speak-aloud-container {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .speak-aloud-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 6px 14px;
+            background: #f0fdf4;
+            border: 1.5px solid #86efac;
+            color: #15803d;
+            border-radius: 20px;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            user-select: none;
+        }
+
+        .speak-aloud-btn:hover {
+            background: #dcfce7;
+            border-color: #22c55e;
+            color: #166534;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(34, 197, 94, 0.18);
+        }
+
+        .speak-aloud-btn.speaking {
+            background: #fef2f2 !important;
+            border-color: #f87171 !important;
+            color: #b91c1c !important;
+            animation: speakPulse 1.4s infinite ease-in-out;
+        }
+
+        @keyframes speakPulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+    </style>
     <script>
-        (function() {
+        (function () {
             var auth = localStorage.getItem("medichain_auth") || sessionStorage.getItem("medichain_auth");
             if (!auth) { window.location.replace("login.html"); }
         })();
@@ -18,201 +73,281 @@
 
 <body>
 
-<div class="dashboard">
+    <div class="dashboard">
 
-    <!-- Sidebar -->
-    <aside class="sidebar">
+        <!-- Sidebar -->
+        <aside class="sidebar">
 
-        <div class="sidebar-header">
-            <div class="logo">
-                <span class="logo-full">MEDI<span>CHAIN</span></span>
-                <span class="logo-short">M<span>C</span></span>
-            </div>
-        </div>
-
-        <h4>MAIN MENU</h4>
-
-        <ul>
-            <li><a href="index.html" title="Dashboard"><span class="nav-icon">🏠</span><span class="nav-text"> Dashboard</span></a></li>
-            <li><a href="assistant.html" class="active" title="AI Health Assistant"><span class="nav-icon">🩺</span><span class="nav-text"> AI Health Assistant</span></a></li>
-            <li><a href="resources.html" title="Hospital Resources"><span class="nav-icon">🏥</span><span class="nav-text"> Hospital Resources</span></a></li>
-            <li><a href="emergency.html" title="Emergency Coordination"><span class="nav-icon">🚨</span><span class="nav-text"> Emergency Coordination</span></a></li>
-            <li><a href="reports.html" title="Report Analysis"><span class="nav-icon">📄</span><span class="nav-text"> Report Analysis</span></a></li>
-            <li><a href="admin.html" title="Admin Panel"><span class="nav-icon">⚙️</span><span class="nav-text"> Admin Panel</span></a></li>
-        </ul>
-
-    </aside>
-
-
-    <!-- Main Content -->
-    <main class="main-content">
-
-        <header class="topbar">
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <button class="topbar-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
-                    ☰
-                </button>
-                <div>
-                    <h2>AI Health Assistant</h2>
-                    <p>Your digital healthcare companion</p>
+            <div class="sidebar-header">
+                <div class="logo">
+                    <img src="images/medichain-logo.png" alt="MEDICHAIN Logo" class="brand-logo">
+                    <span class="logo-full">MEDI<span>CHAIN</span></span>
+                    <span class="logo-short">M<span>C</span></span>
                 </div>
             </div>
 
-            <div>
-                <button class="profile logout-btn" onclick="handleLogout()" style="cursor: pointer; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; font-weight: bold;">
-                    🚪 Logout
-                </button>
-            </div>
-        </header>
+            <h4>MAIN MENU</h4>
+
+            <ul>
+                <li><a href="index.html" title="Dashboard"><span class="nav-icon">🏠</span><span class="nav-text">
+                            Dashboard</span></a></li>
+                <li><a href="assistant.html" class="active" title="AI Health Assistant"><span
+                            class="nav-icon">🩺</span><span class="nav-text"> AI Health Assistant</span></a></li>
+                <li><a href="resources.html" title="Hospital Resources"><span class="nav-icon">🏥</span><span
+                            class="nav-text"> Hospital Resources</span></a></li>
+                <li><a href="emergency.html" title="Emergency Coordination"><span class="nav-icon">🚨</span><span
+                            class="nav-text"> Emergency Coordination</span></a></li>
+                <li><a href="reports.html" title="Report Analysis"><span class="nav-icon">📄</span><span
+                            class="nav-text"> Report Analysis</span></a></li>
+                <li><a href="admin.html" title="Admin Panel"><span class="nav-icon">⚙️</span><span class="nav-text">
+                            Admin Panel</span></a></li>
+            </ul>
+
+        </aside>
 
 
-        <!-- Introduction -->
-        <section class="welcome">
-            <h2>How can I help you today? 🩺</h2>
-            <p>
-                Ask general health questions, understand symptoms
-                and get preliminary health information.
-            </p>
-        </section>
+        <!-- Main Content -->
+        <main class="main-content">
 
-
-        <!-- Chat Section -->
-        <section class="chat-container">
-
-            <div class="chat-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h3>Clinical Health Assistant</h3>
-                    <p id="assistantStatusText" style="color: #15803d; font-weight: 500;">● Online</p>
-                </div>
-                <button type="button" onclick="clearChat()" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;">
-                    🧹 Clear Chat
-                </button>
-            </div>
-
-
-            <div class="chat-messages" id="chatMessages">
-
-                <div class="message bot-message">
-                    <p><strong>Hello! 👋 Welcome to MEDICHAIN Clinical AI.</strong></p>
-                    <p>I am your digital healthcare assistant, grounded in WHO, MedlinePlus, and clinical evidence. You can ask me:</p>
-                    <ul class="md-list">
-                        <li>General health, lifestyle & preventive care questions</li>
-                        <li>Symptom explanations and home precautions</li>
-                        <li>Detailed <strong>medicine information</strong> (uses, mechanism, side effects, interactions & food timing)</li>
-                    </ul>
-                    <p style="font-size: 12px; color: #64748b; margin-top: 6px;">How can I assist your health inquiry today?</p>
+            <header class="topbar">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <button class="topbar-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
+                        ☰
+                    </button>
+                    <div>
+                        <h2>AI Health Assistant</h2>
+                        <p>Your digital healthcare companion</p>
+                    </div>
                 </div>
 
-            </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <!-- Multilingual Selector Popup (English, Kannada, Hindi, Marathi) -->
+                    <div class="lang-dropdown-wrapper" id="langDropdownWrapper">
+                        <button type="button" class="lang-toggle-btn" id="langDropdownBtn" onclick="toggleLangMenu()"
+                            aria-haspopup="true" aria-expanded="false" title="Change Language / ಭಾಷೆ ಬದಲಿಸಿ">
+                            <span class="lang-globe">🌐</span>
+                            <span id="activeLangName">English</span>
+                            <span class="lang-arrow">▼</span>
+                        </button>
+                        <div class="lang-menu" id="langMenu" style="display: none;">
+                            <div class="lang-menu-header">Select Language / ಭಾಷೆ / भाषा</div>
+                            <button type="button" class="lang-item active" data-lang="en" onclick="setLanguage('en')">
+                                <span class="lang-badge">EN</span>
+                                <div class="lang-text">
+                                    <strong>English</strong>
+                                    <span>Default</span>
+                                </div>
+                                <span class="lang-active-mark">✓</span>
+                            </button>
+                            <button type="button" class="lang-item" data-lang="kn" onclick="setLanguage('kn')">
+                                <span class="lang-badge">KN</span>
+                                <div class="lang-text">
+                                    <strong>ಕನ್ನಡ</strong>
+                                    <span>Kannada</span>
+                                </div>
+                                <span class="lang-active-mark">✓</span>
+                            </button>
+                            <button type="button" class="lang-item" data-lang="hi" onclick="setLanguage('hi')">
+                                <span class="lang-badge">HI</span>
+                                <div class="lang-text">
+                                    <strong>हिंदी</strong>
+                                    <span>Hindi</span>
+                                </div>
+                                <span class="lang-active-mark">✓</span>
+                            </button>
+                            <button type="button" class="lang-item" data-lang="mr" onclick="setLanguage('mr')">
+                                <span class="lang-badge">MR</span>
+                                <div class="lang-text">
+                                    <strong>मराठी</strong>
+                                    <span>Marathi</span>
+                                </div>
+                                <span class="lang-active-mark">✓</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button class="profile logout-btn" onclick="handleLogout()"
+                            style="cursor: pointer; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; font-weight: bold;">
+                            🚪 Logout
+                        </button>
+                    </div>
+                </div>
+            </header>
 
 
-            <!-- Suggested Questions -->
-            <div class="suggestions">
-
-                <button type="button" onclick="askQuestion('What is Paracetamol used for and what are its precautions?')">
-                    💊 Paracetamol Info
-                </button>
-
-                <button type="button" onclick="askQuestion('What are the common symptoms of dehydration?')">
-                    💧 Dehydration Symptoms
-                </button>
-
-                <button type="button" onclick="askQuestion('What is Metformin prescribed for and when should it be taken?')">
-                    🩺 Metformin Guidance
-                </button>
-
-                <button type="button" onclick="askQuestion('How can I maintain a healthy balanced diet?')">
-                    🥗 Healthy Diet Guidelines
-                </button>
-
-            </div>
+            <!-- Introduction -->
+            <section class="welcome"
+                style="background: linear-gradient(to right, #171E57 0%, #24338F 25%, #2F5CA3 50%, #3B8DAE 75%, #2EBFB7 100%) !important; color: white !important;">
+                <h2>How can I help you today? 🩺</h2>
+                <p>
+                    Ask general health questions, understand symptoms
+                    and get preliminary health information.
+                </p>
+            </section>
 
 
-            <!-- Input -->
-            <div class="chat-input">
+            <!-- Chat Section -->
+            <section class="chat-container">
 
-                <input
-                    type="text"
-                    id="userInput"
-                    placeholder="Type your health or medication question (e.g., 'What is Ibuprofen used for?')..."
-                    onkeydown="if(event.key === 'Enter') { event.preventDefault(); sendMessage(); }"
-                >
+                <div class="chat-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h3>Clinical Health Assistant</h3>
+                        <p id="assistantStatusText" style="color: #15803d; font-weight: 500;">● Online</p>
+                    </div>
+                    <button type="button" onclick="clearChat()"
+                        style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                        🧹 Clear Chat
+                    </button>
+                </div>
 
-                <button type="button" id="sendBtn" onclick="sendMessage()">Send ➤</button>
 
-            </div>
+                <div class="chat-messages" id="chatMessages">
 
-            <p class="disclaimer">
-                ⚠️ <strong>Clinical Notice:</strong> MEDICHAIN provides AI-assisted health information and preliminary explanations.
-                It does not replace professional medical diagnosis, treatment or consultation. For acute medical emergencies, seek immediate emergency care.
-            </p>
+                    <div class="message bot-message" id="welcomeMessage">
+                        <p><strong>Hello! 👋 Welcome to MEDICHAIN Clinical AI.</strong></p>
+                        <p>I am your digital healthcare assistant, grounded in WHO, MedlinePlus, and clinical evidence.
+                            You can ask me:</p>
+                        <ul class="md-list">
+                            <li>General health, lifestyle & preventive care questions</li>
+                            <li>Symptom explanations and home precautions</li>
+                            <li>Detailed <strong>medicine information</strong> (uses, mechanism, side effects,
+                                interactions & food timing)</li>
+                        </ul>
+                        <p style="font-size: 12px; color: #64748b; margin-top: 6px;">How can I assist your health
+                            inquiry today?</p>
+                        <div class="speak-aloud-container">
+                            <button type="button" class="speak-aloud-btn" onclick="toggleSpeech(this)"
+                                data-speech-text="Hello! Welcome to MEDICHAIN Clinical AI. I am your digital healthcare assistant, grounded in WHO, MedlinePlus, and clinical evidence. You can ask me general health, lifestyle, and preventive care questions, symptom explanations, and detailed medicine information. How can I assist your health inquiry today?"
+                                title="Listen to this answer (Text to Speech)" aria-label="Speak out loud">
+                                <span>🔊</span> <span>Speak Out Loud</span>
+                            </button>
+                        </div>
+                    </div>
 
-        </section>
+                </div>
 
-    </main>
 
-</div>
+                <!-- Suggested Questions -->
+                <div class="suggestions" id="chatSuggestions">
 
-<!-- Core Scripts with Cache Buster -->
-<script src="js/api.js?v=3.0"></script>
-<script src="js/script.js?v=3.0"></script>
+                    <button type="button"
+                        onclick="askQuestion('What is Paracetamol used for and what are its precautions?')">
+                        💊 Paracetamol Info
+                    </button>
 
-<!-- Embedded Fail-Safe Assistant Handler (Direct & Resilient) -->
-<script>
-    var assistantChatHistory = [];
+                    <button type="button" onclick="askQuestion('What are the common symptoms of dehydration?')">
+                        💧 Dehydration Symptoms
+                    </button>
 
-    // Expose helpers globally immediately
-    window.assistantChatHistory = assistantChatHistory;
+                    <button type="button"
+                        onclick="askQuestion('What is Metformin prescribed for and when should it be taken?')">
+                        🩺 Metformin Guidance
+                    </button>
 
-    function renderMedicalMarkdown(text) {
-        if (!text) return "";
-        var escaped = text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
+                    <button type="button" onclick="askQuestion('How can I maintain a healthy balanced diet?')">
+                        🥗 Healthy Diet Guidelines
+                    </button>
 
-        escaped = escaped.replace(/^### (.*$)/gim, '<h4 class="md-h4">$1</h4>');
-        escaped = escaped.replace(/^## (.*$)/gim, '<h3 class="md-h3">$1</h3>');
-        escaped = escaped.replace(/^# (.*$)/gim, '<h2 class="md-h2">$1</h2>');
-        escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        escaped = escaped.replace(/\*(.*?)\*/g, '<em>$1</em>');
-        escaped = escaped.replace(/\[(.*?)\]\((https?:\/\/.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="md-link">$1 ↗</a>');
-        escaped = escaped.replace(/^&gt; \[\!NOTE\]\s*\n&gt; (.*$)/gim, '<div class="md-callout"><strong>Clinical Clarification:</strong> $1</div>');
-        escaped = escaped.replace(/^&gt; (.*$)/gim, '<blockquote class="md-quote">$1</blockquote>');
+                </div>
 
-        var lines = escaped.split("\n");
-        var inList = false;
-        var output = [];
 
-        for (var i = 0; i < lines.length; i++) {
-            var rawLine = lines[i].trim();
-            if (rawLine.startsWith("- ") || rawLine.startsWith("* ")) {
-                if (!inList) { output.push('<ul class="md-list">'); inList = true; }
-                output.push('<li>' + rawLine.substring(2) + '</li>');
-            } else {
-                if (inList) { output.push('</ul>'); inList = false; }
-                if (rawLine.length > 0) {
-                    if (rawLine.startsWith("<h2") || rawLine.startsWith("<h3") || rawLine.startsWith("<h4") || rawLine.startsWith("<div") || rawLine.startsWith("<blockquote")) {
-                        output.push(rawLine);
-                    } else if (rawLine === "---") {
-                        output.push('<hr class="md-divider">');
-                    } else {
-                        output.push('<p class="md-p">' + rawLine + '</p>');
+                <!-- Voice Status Indicator -->
+                <div id="voiceStatusPill" class="voice-status-pill" style="display: none;">
+                    <span class="pulse-dot"></span>
+                    <span>🎙️ Listening to your symptoms... speak clearly (click mic to finish)</span>
+                </div>
+
+                <!-- Input -->
+                <div class="chat-input">
+
+                    <div class="chat-input-wrapper">
+                        <input type="text" id="userInput"
+                            placeholder="Type your health question or click 🎙️ to speak..."
+                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); sendMessage(); }">
+                        <button type="button" id="micBtn" class="mic-btn" title="Speak your symptoms (Voice Input)"
+                            onclick="toggleVoiceInput()" aria-label="Speak symptoms">
+                            <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                <line x1="12" y1="19" x2="12" y2="23"></line>
+                                <line x1="8" y1="23" x2="16" y2="23"></line>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <button type="button" id="sendBtn" onclick="sendMessage()">Send ➤</button>
+
+                </div>
+
+            </section>
+
+        </main>
+
+    </div>
+
+    <!-- Core Scripts with Cache Buster -->
+    <script src="js/api.js?v=4.0"></script>
+    <script src="js/script.js?v=10.0"></script>
+
+    <!-- Embedded Fail-Safe Assistant Handler (Direct & Resilient) -->
+    <script>
+        var assistantChatHistory = [];
+
+        // Expose helpers globally immediately
+        window.assistantChatHistory = assistantChatHistory;
+
+        function renderMedicalMarkdown(text) {
+            if (!text) return "";
+            var escaped = text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+
+            escaped = escaped.replace(/^### (.*$)/gim, '<h4 class="md-h4">$1</h4>');
+            escaped = escaped.replace(/^## (.*$)/gim, '<h3 class="md-h3">$1</h3>');
+            escaped = escaped.replace(/^# (.*$)/gim, '<h2 class="md-h2">$1</h2>');
+            escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            escaped = escaped.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            escaped = escaped.replace(/\[(.*?)\]\((https?:\/\/.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="md-link">$1 ↗</a>');
+            escaped = escaped.replace(/^&gt; \[\!NOTE\]\s*\n&gt; (.*$)/gim, '<div class="md-callout"><strong>Clinical Clarification:</strong> $1</div>');
+            escaped = escaped.replace(/^&gt; (.*$)/gim, '<blockquote class="md-quote">$1</blockquote>');
+
+            var lines = escaped.split("\n");
+            var inList = false;
+            var output = [];
+
+            for (var i = 0; i < lines.length; i++) {
+                var rawLine = lines[i].trim();
+                if (rawLine.startsWith("- ") || rawLine.startsWith("* ")) {
+                    if (!inList) { output.push('<ul class="md-list">'); inList = true; }
+                    output.push('<li>' + rawLine.substring(2) + '</li>');
+                } else {
+                    if (inList) { output.push('</ul>'); inList = false; }
+                    if (rawLine.length > 0) {
+                        if (rawLine.startsWith("<h2") || rawLine.startsWith("<h3") || rawLine.startsWith("<h4") || rawLine.startsWith("<div") || rawLine.startsWith("<blockquote")) {
+                            output.push(rawLine);
+                        } else if (rawLine === "---") {
+                            output.push('<hr class="md-divider">');
+                        } else {
+                            output.push('<p class="md-p">' + rawLine + '</p>');
+                        }
                     }
                 }
             }
+            if (inList) output.push('</ul>');
+            return output.join("\n");
         }
-        if (inList) output.push('</ul>');
-        return output.join("\n");
-    }
 
-    function clearChat() {
-        assistantChatHistory = [];
-        window.assistantChatHistory = [];
-        var chatMessages = document.getElementById("chatMessages");
-        if (!chatMessages) return;
-        chatMessages.innerHTML = `
-            <div class="message bot-message">
+        function clearChat() {
+            stopSpeaking();
+            assistantChatHistory = [];
+            window.assistantChatHistory = [];
+            var chatMessages = document.getElementById("chatMessages");
+            if (!chatMessages) return;
+            chatMessages.innerHTML = `
+            <div class="message bot-message" id="welcomeMessage">
                 <p><strong>Hello! 👋 Welcome back to MEDICHAIN Clinical AI.</strong></p>
                 <p>I am your digital healthcare assistant, grounded in WHO, MedlinePlus, and clinical evidence. You can ask me:</p>
                 <ul class="md-list">
@@ -221,190 +356,555 @@
                     <li>Detailed <strong>medicine information</strong> (uses, mechanism, side effects, interactions & food timing)</li>
                 </ul>
                 <p style="font-size: 12px; color: #64748b; margin-top: 6px;">How can I assist your health inquiry today?</p>
+                <div class="speak-aloud-container">
+                    <button type="button" class="speak-aloud-btn" onclick="toggleSpeech(this)"
+                        data-speech-text="Hello! Welcome back to MEDICHAIN Clinical AI. I am your digital healthcare assistant, grounded in WHO, MedlinePlus, and clinical evidence. You can ask me general health, lifestyle, and preventive care questions, symptom explanations, and detailed medicine information. How can I assist your health inquiry today?"
+                        title="Listen to this answer (Text to Speech)" aria-label="Speak out loud">
+                        <span>🔊</span> <span>Speak Out Loud</span>
+                    </button>
+                </div>
             </div>
-        `;
-    }
+            `;
+        }
 
-    function askQuestion(q) {
-        var input = document.getElementById("userInput");
-        if (!input) return;
-        input.value = q;
-        sendMessage();
-    }
+        function askQuestion(q) {
+            var input = document.getElementById("userInput");
+            if (!input) return;
+            input.value = q;
+            sendMessage();
+        }
 
-    async function sendMessage() {
-        var input = document.getElementById("userInput");
-        var chatMessages = document.getElementById("chatMessages");
-        var sendBtn = document.getElementById("sendBtn");
-        if (!input || !chatMessages) return;
+        async function sendMessage() {
+            var input = document.getElementById("userInput");
+            var chatMessages = document.getElementById("chatMessages");
+            var sendBtn = document.getElementById("sendBtn");
+            if (!input || !chatMessages) return;
 
-        var question = input.value.trim();
-        if (question === "") return;
+            var question = input.value.trim();
+            if (question === "") return;
 
-        // 1. Immediately append user bubble & clear input
-        var userMsg = document.createElement("div");
-        userMsg.className = "message user-message";
-        userMsg.textContent = question;
-        chatMessages.appendChild(userMsg);
+            // 1. Immediately append user bubble & clear input
+            var userMsg = document.createElement("div");
+            userMsg.className = "message user-message";
+            userMsg.textContent = question;
+            chatMessages.appendChild(userMsg);
 
-        input.value = "";
-        if (sendBtn) sendBtn.disabled = true;
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+            input.value = "";
+            if (sendBtn) sendBtn.disabled = true;
+            chatMessages.scrollTop = chatMessages.scrollHeight;
 
-        // 2. Append typing indicator
-        var typingMsg = document.createElement("div");
-        typingMsg.className = "message bot-message chat-typing";
-        typingMsg.id = "typingIndicator";
-        typingMsg.innerHTML = '<span class="spinner"></span> Consulting MEDICHAIN clinical AI engine...';
-        chatMessages.appendChild(typingMsg);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+            // 2. Append typing indicator
+            var typingMsg = document.createElement("div");
+            typingMsg.className = "message bot-message chat-typing";
+            typingMsg.id = "typingIndicator";
+            typingMsg.innerHTML = '<span class="spinner"></span> Consulting MEDICHAIN clinical AI engine...';
+            chatMessages.appendChild(typingMsg);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
 
-        // 3. Resolve API base URL dynamically
-        var apiUrl = (window.medichainApi && window.medichainApi.baseUrl) 
-            ? window.medichainApi.baseUrl 
-            : (window.location.hostname === "localhost" ? "http://localhost:8000" : "http://127.0.0.1:8000");
+            // 3. Resolve API base URL dynamically
+            var apiUrl = (window.medichainApi && window.medichainApi.baseUrl)
+                ? window.medichainApi.baseUrl
+                : (window.location.hostname === "localhost" ? "http://localhost:8000" : "http://127.0.0.1:8000");
 
-        try {
-            var res = await fetch(apiUrl + "/api/assistant/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Accept": "application/json" },
-                body: JSON.stringify({ message: question, history: assistantChatHistory })
-            });
+            try {
+                var res = await fetch(apiUrl + "/api/assistant/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                    body: JSON.stringify({
+                        message: question,
+                        history: assistantChatHistory,
+                        language: currentLanguage
+                    })
+                });
 
-            if (typingMsg.parentNode) typingMsg.parentNode.removeChild(typingMsg);
-            if (sendBtn) sendBtn.disabled = false;
-            input.focus();
+                if (typingMsg.parentNode) typingMsg.parentNode.removeChild(typingMsg);
+                if (sendBtn) sendBtn.disabled = false;
+                input.focus();
 
-            if (!res.ok) {
-                var errDetail = "HTTP " + res.status;
-                try { var errJson = await res.json(); if (errJson.detail) errDetail = errJson.detail; } catch(_) {}
-                throw new Error(errDetail);
-            }
+                if (!res.ok) {
+                    var errDetail = "HTTP " + res.status;
+                    try { var errJson = await res.json(); if (errJson.detail) errDetail = errJson.detail; } catch (_) { }
+                    throw new Error(errDetail);
+                }
 
-            var data = await res.json();
+                var data = await res.json();
 
-            // Save multi-turn history
-            assistantChatHistory.push({ role: "user", content: question });
-            if (data.reply) assistantChatHistory.push({ role: "assistant", content: data.reply });
+                // Save multi-turn history
+                assistantChatHistory.push({ role: "user", content: question });
+                if (data.reply) assistantChatHistory.push({ role: "assistant", content: data.reply });
 
-            var botMsg = document.createElement("div");
-            botMsg.className = "message bot-message";
+                var botMsg = document.createElement("div");
+                botMsg.className = "message bot-message";
 
-            if (data.is_emergency) {
-                var alertCard = document.createElement("div");
-                alertCard.className = "emergency-alert-card";
-                alertCard.innerHTML = `
+                if (data.is_emergency) {
+                    var alertCard = document.createElement("div");
+                    alertCard.className = "emergency-alert-card";
+                    alertCard.innerHTML = `
                     <strong>🚨 Critical Emergency Alert</strong>
                     <span>Potential acute medical emergency detected. Immediate professional care is required.</span>
                     <div style="margin-top: 8px;">
                         <a href="emergency.html" style="display: inline-block; background: #dc2626; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 12px;">Go to Emergency Coordination ➔</a>
                     </div>
                 `;
-                botMsg.appendChild(alertCard);
-            }
+                    botMsg.appendChild(alertCard);
+                }
 
-            var contentDiv = document.createElement("div");
-            contentDiv.innerHTML = renderMedicalMarkdown(data.reply || "No response received.");
-            botMsg.appendChild(contentDiv);
+                var contentDiv = document.createElement("div");
+                contentDiv.innerHTML = renderMedicalMarkdown(data.reply || "No response received.");
+                botMsg.appendChild(contentDiv);
 
-            var badge = document.createElement("span");
-            if (data.source === "gemini_api") {
-                badge.className = "api-badge live";
-                badge.textContent = "🤖 Powered by Gemini AI (Model 3.1 Flash-Lite)";
-            } else if (data.source === "verified_medical_kb") {
-                badge.className = "api-badge live";
-                badge.textContent = "📚 Verified Medical Knowledge Base";
-            } else {
-                badge.className = "api-badge ai";
-                badge.textContent = "🩺 Clinical Engine (Educational)";
-            }
-            botMsg.appendChild(badge);
+                var badge = document.createElement("span");
+                if (data.source === "gemini_api") {
+                    badge.className = "api-badge live";
+                    badge.textContent = "🤖 Powered by Gemini AI (Model 3.1 Flash-Lite)";
+                } else if (data.source === "verified_medical_kb") {
+                    badge.className = "api-badge live";
+                    badge.textContent = "📚 Verified Medical Knowledge Base";
+                } else {
+                    badge.className = "api-badge ai";
+                    badge.textContent = "🩺 Clinical Engine (Educational)";
+                }
+                botMsg.appendChild(badge);
 
-            if (data.verified_sources && data.verified_sources.length > 0) {
-                var sourcesDiv = document.createElement("div");
-                sourcesDiv.className = "source-pill-container";
-                sourcesDiv.innerHTML = '<span style="font-size: 11px; color: #64748b; font-weight: 600;">References:</span>';
-                data.verified_sources.forEach(function(s) {
-                    var pill = document.createElement("span");
-                    pill.className = "source-pill";
-                    pill.textContent = s;
-                    sourcesDiv.appendChild(pill);
-                });
-                botMsg.appendChild(sourcesDiv);
-            }
+                if (data.verified_sources && data.verified_sources.length > 0) {
+                    var sourcesDiv = document.createElement("div");
+                    sourcesDiv.className = "source-pill-container";
+                    sourcesDiv.innerHTML = '<span style="font-size: 11px; color: #64748b; font-weight: 600;">References:</span>';
+                    data.verified_sources.forEach(function (s) {
+                        var pill = document.createElement("span");
+                        pill.className = "source-pill";
+                        pill.textContent = s;
+                        sourcesDiv.appendChild(pill);
+                    });
+                    botMsg.appendChild(sourcesDiv);
+                }
 
-            if (data.disclaimer) {
-                var discP = document.createElement("p");
-                discP.style.fontSize = "11px";
-                discP.style.color = "#64748b";
-                discP.style.marginTop = "8px";
-                discP.style.borderTop = "1px solid #f1f5f9";
-                discP.style.paddingTop = "6px";
-                discP.textContent = "⚠️ " + data.disclaimer;
-                botMsg.appendChild(discP);
-            }
+                if (data.disclaimer) {
+                    var discP = document.createElement("p");
+                    discP.style.fontSize = "11px";
+                    discP.style.color = "#64748b";
+                    discP.style.marginTop = "8px";
+                    discP.style.borderTop = "1px solid #f1f5f9";
+                    discP.style.paddingTop = "6px";
+                    discP.textContent = "⚠️ " + data.disclaimer;
+                    botMsg.appendChild(discP);
+                }
 
-            chatMessages.appendChild(botMsg);
-        } catch (err) {
-            if (typingMsg.parentNode) typingMsg.parentNode.removeChild(typingMsg);
-            if (sendBtn) sendBtn.disabled = false;
-            input.focus();
+                // Append Speak Out Loud accessibility button right at the end of the answer
+                var speakContainer = document.createElement("div");
+                speakContainer.className = "speak-aloud-container";
 
-            var errMsg = document.createElement("div");
-            errMsg.className = "message bot-message";
-            errMsg.innerHTML = `
+                var speakBtn = document.createElement("button");
+                speakBtn.type = "button";
+                speakBtn.className = "speak-aloud-btn";
+                speakBtn.setAttribute("aria-label", "Speak out loud - Text to Speech for accessibility");
+                speakBtn.setAttribute("title", "Listen to this answer (Text to Speech)");
+                speakBtn.innerHTML = "<span>🔊</span> <span>Speak Out Loud</span>";
+                speakBtn.dataset.speechText = cleanTextForSpeech(data.reply || "");
+                speakBtn.onclick = function () {
+                    toggleSpeech(speakBtn);
+                };
+
+                speakContainer.appendChild(speakBtn);
+                botMsg.appendChild(speakContainer);
+
+                chatMessages.appendChild(botMsg);
+            } catch (err) {
+                if (typingMsg.parentNode) typingMsg.parentNode.removeChild(typingMsg);
+                if (sendBtn) sendBtn.disabled = false;
+                input.focus();
+
+                var errMsg = document.createElement("div");
+                errMsg.className = "message bot-message";
+                errMsg.innerHTML = `
                 <p style="color: #b91c1c;"><strong>⚠️ Connection Notice:</strong> Unable to reach the clinical assistant service (${err.message}).</p>
                 <p style="font-size: 13px; margin-top: 6px; color: #64748b;">Please verify that the backend is active at <code>http://127.0.0.1:8000</code>.</p>
             `;
-            chatMessages.appendChild(errMsg);
-        }
-
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    // Direct status checker
-    async function checkDirectStatus() {
-        var statusEl = document.getElementById("assistantStatusText");
-        if (!statusEl) return;
-        var apiUrl = window.location.hostname === "localhost" ? "http://localhost:8000" : "http://127.0.0.1:8000";
-        try {
-            var r = await fetch(apiUrl + "/api/health", { cache: "no-store" });
-            if (r.ok) {
-                var h = await r.json();
-                statusEl.innerHTML = `● Online <span style="font-size: 11px; opacity: 0.85;">(${h.gemini_ai_configured ? 'Gemini 3.1 Live' : 'Medical Engine'} | ${h.database || 'active'})</span>`;
-                statusEl.style.color = "#15803d";
+                chatMessages.appendChild(errMsg);
             }
-        } catch(e) {
-            statusEl.innerHTML = `● Backend Offline <span style="font-size: 11px;">(Check port 8000)</span>`;
-            statusEl.style.color = "#b91c1c";
+
+            chatMessages.scrollTop = chatMessages.scrollHeight;
         }
-    }
 
-    // Bind globally and attach event listeners
-    window.sendMessage = sendMessage;
-    window.askQuestion = askQuestion;
-    window.clearChat = clearChat;
+        // Direct status checker
+        async function checkDirectStatus() {
+            var statusEl = document.getElementById("assistantStatusText");
+            if (!statusEl) return;
+            var apiUrl = window.location.hostname === "localhost" ? "http://localhost:8000" : "http://127.0.0.1:8000";
+            try {
+                var r = await fetch(apiUrl + "/api/health", { cache: "no-store" });
+                if (r.ok) {
+                    var h = await r.json();
+                    statusEl.innerHTML = `● Online <span style="font-size: 11px; opacity: 0.85;">(${h.gemini_ai_configured ? 'Gemini 3.1 Live' : 'Medical Engine'} | ${h.database || 'active'})</span>`;
+                    statusEl.style.color = "#15803d";
+                }
+            } catch (e) {
+                statusEl.innerHTML = `● Backend Offline <span style="font-size: 11px;">(Check port 8000)</span>`;
+                statusEl.style.color = "#b91c1c";
+            }
+        }
 
-    window.addEventListener("DOMContentLoaded", function() {
-        checkDirectStatus();
-        var sendBtn = document.getElementById("sendBtn");
-        var userInput = document.getElementById("userInput");
-        if (sendBtn) {
-            sendBtn.onclick = function(e) {
+        // ============================================================================
+        // MULTILINGUAL & VOICE RECOGNITION (English, Kannada, Hindi, Marathi)
+        // ============================================================================
+        var currentLanguage = localStorage.getItem("medichain_lang") || "en";
+
+        var languageConfig = {
+            en: {
+                name: "English",
+                badge: "EN",
+                speechLang: "en-IN",
+                placeholder: "Type your health or medication question (or click 🎙️ to speak)...",
+                listeningText: "🎙️ Listening in English... speak your symptoms",
+                micTitle: "Speak in English (Voice Input)"
+            },
+            kn: {
+                name: "ಕನ್ನಡ (Kannada)",
+                badge: "KN",
+                speechLang: "kn-IN",
+                placeholder: "ನಿಮ್ಮ ಆರೋಗ್ಯ ಸಮಸ್ಯೆಯನ್ನು ಇಲ್ಲಿ ಬರೆಯಿರಿ ಅಥವಾ 🎙️ ಒತ್ತಿ ಕನ್ನಡದಲ್ಲಿ ಮಾತನಾಡಿ...",
+                listeningText: "🎙️ ಕನ್ನಡದಲ್ಲಿ ಆಲಿಸಲಾಗುತ್ತಿದೆ... ನಿಮ್ಮ ರೋಗಲಕ್ಷಣಗಳನ್ನು ತಿಳಿಸಿ",
+                micTitle: "ಕನ್ನಡದಲ್ಲಿ ಮಾತನಾಡಿ (ಧ್ವನಿ ಇನ್ಪುಟ್)"
+            },
+            hi: {
+                name: "हिंदी (Hindi)",
+                badge: "HI",
+                speechLang: "hi-IN",
+                placeholder: "अपनी स्वास्थ्य समस्या यहां लिखें या 🎙️ दबाकर हिंदी में बोलें...",
+                listeningText: "🎙️ हिंदी में सुन रहे हैं... अपने लक्षण बताएं",
+                micTitle: "हिंदी में बोलें (वॉइस इनपुट)"
+            },
+            mr: {
+                name: "मराठी (Marathi)",
+                badge: "MR",
+                speechLang: "mr-IN",
+                placeholder: "तुमचा आरोग्य प्रश्न येथे लिहा किंवा 🎙️ दाबून मराठीत बोला...",
+                listeningText: "🎙️ मराठीत ऐकत आहे... आपली लक्षणे सांगा",
+                micTitle: "मराठीत बोला (व्हॉइस इनपुट)"
+            }
+        };
+
+        // ============================================================================
+        // TEXT-TO-SPEECH (SPEAK OUT LOUD) ACCESSIBILITY ENGINE
+        // ============================================================================
+        var currentSpeechUtterance = null;
+        var activeSpeakingBtn = null;
+
+        function cleanTextForSpeech(raw) {
+            if (!raw) return "";
+            var text = raw;
+            // Remove markdown links [title](url) -> title
+            text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+            // Remove headers, bold, italics, code blocks
+            text = text.replace(/#{1,6}\s+/g, "");
+            text = text.replace(/\*\*(.*?)\*\*/g, "$1");
+            text = text.replace(/\*(.*?)\*/g, "$1");
+            text = text.replace(/__(.*?)__/g, "$1");
+            text = text.replace(/_(.*?)_/g, "$1");
+            text = text.replace(/`{1,3}[^`]*`{1,3}/g, "");
+            // Remove list markers at start of lines
+            text = text.replace(/^\s*[-*+]\s+/gm, "");
+            text = text.replace(/^\s*\d+\.\s+/gm, "");
+            // Remove horizontal rules
+            text = text.replace(/^-{3,}|^\*{3,}|^_{3,}/gm, "");
+            // Strip HTML tags if any
+            text = text.replace(/<[^>]*>/g, " ");
+            // Normalize spaces
+            text = text.replace(/\s+/g, " ").trim();
+            return text;
+        }
+
+        function stopSpeaking() {
+            if ("speechSynthesis" in window) {
+                window.speechSynthesis.cancel();
+            }
+            if (activeSpeakingBtn) {
+                activeSpeakingBtn.classList.remove("speaking");
+                activeSpeakingBtn.innerHTML = "<span>🔊</span> <span>Speak Out Loud</span>";
+                activeSpeakingBtn.setAttribute("title", "Listen to this answer (Text to Speech)");
+                activeSpeakingBtn = null;
+            }
+            currentSpeechUtterance = null;
+        }
+
+        function toggleSpeech(btn) {
+            if (!("speechSynthesis" in window)) {
+                alert("Text-to-speech is not supported in this browser. Please try Google Chrome, Microsoft Edge, or Safari.");
+                return;
+            }
+
+            // If this button is already speaking, clicking it stops the speech
+            if (activeSpeakingBtn === btn && window.speechSynthesis.speaking) {
+                stopSpeaking();
+                return;
+            }
+
+            // Stop any ongoing speech
+            stopSpeaking();
+
+            var textToSpeak = btn.dataset.speechText;
+            if (!textToSpeak) {
+                // Fallback: extract text from the parent bot-message
+                var parentMsg = btn.closest(".bot-message");
+                if (parentMsg) {
+                    var clone = parentMsg.cloneNode(true);
+                    var containers = clone.querySelectorAll(".speak-aloud-container, .api-badge, .source-pill-container");
+                    containers.forEach(function (el) { el.remove(); });
+                    textToSpeak = cleanTextForSpeech(clone.innerText || clone.textContent);
+                }
+            }
+
+            if (!textToSpeak) return;
+
+            var utterance = new SpeechSynthesisUtterance(textToSpeak);
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+
+            utterance.onstart = function () {
+                activeSpeakingBtn = btn;
+                btn.classList.add("speaking");
+                btn.innerHTML = "<span>⏹️</span> <span>Stop Speaking</span>";
+                btn.setAttribute("title", "Click to stop speaking");
+            };
+
+            utterance.onend = function () {
+                stopSpeaking();
+            };
+
+            utterance.onerror = function (err) {
+                console.warn("Speech synthesis notice:", err);
+                stopSpeaking();
+            };
+
+            currentSpeechUtterance = utterance;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function toggleLangMenu() {
+            var menu = document.getElementById("langMenu");
+            var wrapper = document.getElementById("langDropdownWrapper");
+            if (!menu) return;
+            var isOpen = menu.style.display === "block";
+            menu.style.display = isOpen ? "none" : "block";
+            if (wrapper) wrapper.classList.toggle("open", !isOpen);
+        }
+
+        function setLanguage(langCode) {
+            if (!languageConfig[langCode]) langCode = "en";
+            currentLanguage = langCode;
+            localStorage.setItem("medichain_lang", langCode);
+
+            // Update active topbar button label
+            var activeLabel = document.getElementById("activeLangName");
+            if (activeLabel) activeLabel.textContent = languageConfig[langCode].name;
+
+            // Update active checkmarks in menu
+            var items = document.querySelectorAll(".lang-item");
+            items.forEach(function (item) {
+                if (item.getAttribute("data-lang") === langCode) {
+                    item.classList.add("active");
+                } else {
+                    item.classList.remove("active");
+                }
+            });
+
+            // Update placeholder and title
+            var userInput = document.getElementById("userInput");
+            if (userInput) {
+                userInput.placeholder = languageConfig[langCode].placeholder;
+                userInput.dataset.prevPlaceholder = languageConfig[langCode].placeholder;
+            }
+
+            var micBtn = document.getElementById("micBtn");
+            if (micBtn) {
+                micBtn.title = languageConfig[langCode].micTitle;
+            }
+
+            // Close dropdown
+            var menu = document.getElementById("langMenu");
+            var wrapper = document.getElementById("langDropdownWrapper");
+            if (menu) menu.style.display = "none";
+            if (wrapper) wrapper.classList.remove("open");
+        }
+
+        // Close menu when clicking outside
+        document.addEventListener("click", function (e) {
+            var wrapper = document.getElementById("langDropdownWrapper");
+            var menu = document.getElementById("langMenu");
+            if (wrapper && menu && !wrapper.contains(e.target)) {
+                menu.style.display = "none";
+                wrapper.classList.remove("open");
+            }
+        });
+
+        var voiceRecognition = null;
+        var isVoiceListening = false;
+
+        function setupVoiceInput() {
+            var micBtn = document.getElementById("micBtn");
+            if (!micBtn) return;
+
+            var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                micBtn.onclick = function (e) {
+                    e.preventDefault();
+                    alert("Voice input is not supported in this browser.\n\nPlease open MEDICHAIN in Google Chrome, Microsoft Edge, or Safari to use microphone input.");
+                };
+                return;
+            }
+
+            micBtn.onclick = function (e) {
                 e.preventDefault();
-                sendMessage();
+                toggleVoiceRecognition();
             };
         }
-        if (userInput) {
-            userInput.onkeydown = function(e) {
-                if (e.key === "Enter") {
+
+        function toggleVoiceRecognition() {
+            var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                alert("Voice input is not supported in this browser.\n\nPlease open MEDICHAIN in Google Chrome, Microsoft Edge, or Safari to use microphone input.");
+                return;
+            }
+
+            if (isVoiceListening && voiceRecognition) {
+                try {
+                    voiceRecognition.stop();
+                } catch (e) { }
+                return;
+            }
+
+            try {
+                voiceRecognition = new SpeechRecognition();
+                voiceRecognition.continuous = false;
+                voiceRecognition.interimResults = true;
+
+                // Set speech recognition language based on active selected language
+                var activeConfig = languageConfig[currentLanguage] || languageConfig["en"];
+                voiceRecognition.lang = activeConfig.speechLang;
+
+                voiceRecognition.onstart = function () {
+                    isVoiceListening = true;
+                    updateVoiceState(true);
+                };
+
+                voiceRecognition.onresult = function (event) {
+                    var userInput = document.getElementById("userInput");
+                    if (!userInput) return;
+
+                    var currentTranscript = "";
+                    for (var i = 0; i < event.results.length; i++) {
+                        currentTranscript += event.results[i][0].transcript;
+                    }
+
+                    if (currentTranscript) {
+                        userInput.value = currentTranscript;
+                        userInput.focus();
+                    }
+                };
+
+                voiceRecognition.onerror = function (event) {
+                    console.warn("Speech recognition notice:", event.error);
+                    isVoiceListening = false;
+                    updateVoiceState(false);
+
+                    if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+                        alert("Microphone permission was not allowed.\n\nTo enable:\n1. Click the lock 🔒 icon next to the URL in your browser.\n2. Set 'Microphone' to 'Allow'.\n3. Click the mic button again.");
+                    } else if (event.error === "network") {
+                        alert("Speech recognition network error. Please check your internet connection.");
+                    }
+                };
+
+                voiceRecognition.onend = function () {
+                    isVoiceListening = false;
+                    updateVoiceState(false);
+                    var userInput = document.getElementById("userInput");
+                    if (userInput && userInput.value.trim().length > 0) {
+                        userInput.focus();
+                    }
+                };
+
+                voiceRecognition.start();
+            } catch (err) {
+                console.error("Speech recognition startup error:", err);
+                isVoiceListening = false;
+                updateVoiceState(false);
+            }
+        }
+
+        function updateVoiceState(listening) {
+            var micBtn = document.getElementById("micBtn");
+            var userInput = document.getElementById("userInput");
+            var statusPill = document.getElementById("voiceStatusPill");
+            var activeConfig = languageConfig[currentLanguage] || languageConfig["en"];
+
+            if (micBtn) {
+                if (listening) {
+                    micBtn.classList.add("listening");
+                    micBtn.title = "Listening... Click to stop";
+                    micBtn.setAttribute("aria-label", "Listening... Click to stop");
+                } else {
+                    micBtn.classList.remove("listening");
+                    micBtn.title = activeConfig.micTitle;
+                    micBtn.setAttribute("aria-label", activeConfig.micTitle);
+                }
+            }
+
+            if (userInput) {
+                if (listening) {
+                    if (!userInput.dataset.prevPlaceholder) {
+                        userInput.dataset.prevPlaceholder = userInput.placeholder;
+                    }
+                    userInput.placeholder = activeConfig.listeningText;
+                } else {
+                    if (userInput.dataset.prevPlaceholder) {
+                        userInput.placeholder = userInput.dataset.prevPlaceholder;
+                    }
+                }
+            }
+
+            if (statusPill) {
+                statusPill.style.display = listening ? "flex" : "none";
+                var statusSpan = statusPill.querySelector("span:last-child");
+                if (statusSpan) {
+                    statusSpan.textContent = activeConfig.listeningText;
+                }
+            }
+        }
+
+        // Bind globally and attach event listeners
+        window.sendMessage = sendMessage;
+        window.askQuestion = askQuestion;
+        window.clearChat = clearChat;
+        window.toggleVoiceInput = toggleVoiceRecognition;
+        window.toggleLangMenu = toggleLangMenu;
+        window.setLanguage = setLanguage;
+        window.toggleSpeech = toggleSpeech;
+        window.stopSpeaking = stopSpeaking;
+
+        window.addEventListener("DOMContentLoaded", function () {
+            checkDirectStatus();
+            setLanguage(currentLanguage);
+            setupVoiceInput();
+
+            var sendBtn = document.getElementById("sendBtn");
+            var userInput = document.getElementById("userInput");
+            if (sendBtn) {
+                sendBtn.onclick = function (e) {
                     e.preventDefault();
                     sendMessage();
-                }
-            };
-        }
-    });
-</script>
+                };
+            }
+            if (userInput) {
+                userInput.onkeydown = function (e) {
+                    if (e.key === "Enter") {
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                };
+            }
+        });
+    </script>
 
 </body>
+
 </html>

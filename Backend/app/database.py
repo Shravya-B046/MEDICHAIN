@@ -89,7 +89,9 @@ except Exception as e:
         f"Unable to connect to primary DATABASE_URL '{database_url}': {e}. "
         "Falling back to local SQLite demo database (sqlite:///./medichain_demo.db) for demonstration."
     )
-    fallback_url = "sqlite:///./medichain_demo.db"
+    from pathlib import Path as _Path
+    _db_file = _Path(__file__).resolve().parent.parent / "medichain_demo.db"
+    fallback_url = f"sqlite:///{_db_file.as_posix()}"
     active_db_type = "sqlite"
     active_db_url = fallback_url
     engine = create_engine(

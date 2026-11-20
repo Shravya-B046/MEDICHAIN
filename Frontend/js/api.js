@@ -104,14 +104,15 @@
             return this.request("/api/health");
         },
 
-        // Module 1: AI Health Assistant with Multi-Turn History
-        sendChatMessage: function(message, context, history) {
+        // Module 1: AI Health Assistant with Multi-Turn History & Multilingual Support
+        sendChatMessage: function(message, context, history, language) {
             return this.request("/api/assistant/chat", {
                 method: "POST",
                 body: {
                     message: message,
                     context: context || null,
-                    history: history || []
+                    history: history || [],
+                    language: language || "en"
                 }
             });
         },

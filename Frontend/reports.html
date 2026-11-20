@@ -1,223 +1,223 @@
-
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Report Analysis | MEDICHAIN</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=10.0">
     <script>
-        (function() {
+        (function () {
             var auth = localStorage.getItem("medichain_auth") || sessionStorage.getItem("medichain_auth");
             if (!auth) { window.location.replace("login.html"); }
         })();
     </script>
 </head>
+
 <body>
 
-<div class="dashboard">
+    <div class="dashboard">
 
-    <aside class="sidebar">
+        <aside class="sidebar">
 
-        <div class="sidebar-header">
-            <div class="logo">
-                <span class="logo-full">MEDI<span>CHAIN</span></span>
-                <span class="logo-short">M<span>C</span></span>
+            <div class="sidebar-header">
+                <div class="logo">
+                    <img src="images/medichain-logo.png" alt="MEDICHAIN Logo" class="brand-logo">
+                    <span class="logo-full">MEDI<span>CHAIN</span></span>
+                    <span class="logo-short">M<span>C</span></span>
+                </div>
             </div>
-        </div>
 
-        <h4>MAIN MENU</h4>
+            <h4>MAIN MENU</h4>
 
-        <ul>
-            <li><a href="index.html" title="Dashboard"><span class="nav-icon">🏠</span><span class="nav-text"> Dashboard</span></a></li>
-            <li><a href="assistant.html" title="AI Health Assistant"><span class="nav-icon">🩺</span><span class="nav-text"> AI Health Assistant</span></a></li>
-            <li><a href="resources.html" title="Hospital Resources"><span class="nav-icon">🏥</span><span class="nav-text"> Hospital Resources</span></a></li>
-            <li><a href="emergency.html" title="Emergency Coordination"><span class="nav-icon">🚨</span><span class="nav-text"> Emergency Coordination</span></a></li>
-            <li><a href="reports.html" class="active" title="Report Analysis"><span class="nav-icon">📄</span><span class="nav-text"> Report Analysis</span></a></li>
-            <li><a href="admin.html" title="Admin Panel"><span class="nav-icon">⚙️</span><span class="nav-text"> Admin Panel</span></a></li>
-        </ul>
+            <ul>
+                <li><a href="index.html" title="Dashboard"><span class="nav-icon">🏠</span><span class="nav-text">
+                            Dashboard</span></a></li>
+                <li><a href="assistant.html" title="AI Health Assistant"><span class="nav-icon">🩺</span><span
+                            class="nav-text"> AI Health Assistant</span></a></li>
+                <li><a href="resources.html" title="Hospital Resources"><span class="nav-icon">🏥</span><span
+                            class="nav-text"> Hospital Resources</span></a></li>
+                <li><a href="emergency.html" title="Emergency Coordination"><span class="nav-icon">🚨</span><span
+                            class="nav-text"> Emergency Coordination</span></a></li>
+                <li><a href="reports.html" class="active" title="Report Analysis"><span class="nav-icon">📄</span><span
+                            class="nav-text"> Report Analysis</span></a></li>
+                <li><a href="admin.html" title="Admin Panel"><span class="nav-icon">⚙️</span><span class="nav-text">
+                            Admin Panel</span></a></li>
+            </ul>
 
-    </aside>
+        </aside>
 
-    <main class="main-content">
+        <main class="main-content">
 
-        <header class="topbar">
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <button class="topbar-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
-                    ☰
+            <header class="topbar">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <button class="topbar-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
+                        ☰
+                    </button>
+                    <h2>AI Preliminary Report Analysis</h2>
+                </div>
+                <div>
+                    <button class="profile logout-btn" onclick="handleLogout()"
+                        style="cursor: pointer; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; font-weight: bold;">
+                        🚪 Logout
+                    </button>
+                </div>
+            </header>
+
+            <section class="welcome" style="background: linear-gradient(to right, #171E57 0%, #24338F 25%, #2F5CA3 50%, #3B8DAE 75%, #2EBFB7 100%) !important; color: white !important;">
+                <h1>Medical Report Analysis</h1>
+                <p>Upload a medical report to prepare a preliminary summary for review.</p>
+            </section>
+
+            <section class="feature-card">
+                <h2>Upload Medical Report</h2>
+                <p>Select a report from your computer (PDF, JPG or PNG).</p>
+
+                <br>
+
+                <input type="file" id="reportFile" accept=".pdf,.jpg,.jpeg,.png"
+                    onchange="handleReportFileSelect(this)">
+
+                <br><br>
+
+                <button type="button" id="analyzeBtn" onclick="analyzeReport()">
+                    Analyze Report
                 </button>
-                <h2>AI Preliminary Report Analysis</h2>
-            </div>
-            <div>
-                <button class="profile logout-btn" onclick="handleLogout()" style="cursor: pointer; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; font-weight: bold;">
-                    🚪 Logout
-                </button>
-            </div>
-        </header>
 
-        <section class="welcome">
-            <h1>Medical Report Analysis</h1>
-            <p>Upload a medical report to prepare a preliminary summary for review.</p>
-        </section>
-
-        <section class="feature-card">
-            <h2>Upload Medical Report</h2>
-            <p>Select a report from your computer (PDF, JPG or PNG).</p>
+                <p id="fileMessage" style="margin-top: 10px; font-weight: 500;"></p>
+            </section>
 
             <br>
 
-            <input
-                type="file"
-                id="reportFile"
-                accept=".pdf,.jpg,.jpeg,.png"
-                onchange="handleReportFileSelect(this)"
-            >
+            <section class="feature-card">
+                <h2>Preliminary Analysis</h2>
+                <div id="analysisResult">
+                    <p>Your preliminary report summary will appear here.</p>
+                </div>
+            </section>
 
-            <br><br>
+        </main>
+    </div>
 
-            <button type="button" id="analyzeBtn" onclick="analyzeReport()">
-                Analyze Report
-            </button>
-
-            <p id="fileMessage" style="margin-top: 10px; font-weight: 500;"></p>
-        </section>
-
-        <br>
-
-        <section class="feature-card">
-            <h2>Preliminary Analysis</h2>
-            <div id="analysisResult">
-                <p>Your preliminary report summary will appear here.</p>
-            </div>
-        </section>
-
-        <p class="disclaimer">
-            Demonstration interface only. No real medical AI analysis is performed.
-            This tool does not diagnose conditions or replace a qualified medical professional.
-        </p>
-
-    </main>
-</div>
-
-<script src="js/api.js?v=20261118"></script>
-<script src="js/script.js?v=20261118"></script>
-<script>
-function handleReportFileSelect(input) {
-    var fileMessage = document.getElementById("fileMessage");
-    if (!input || !input.files || !input.files.length) {
-        if (fileMessage) fileMessage.textContent = "";
-        return;
-    }
-    var file = input.files[0];
-    var allowed = ["pdf", "png", "jpg", "jpeg"];
-    var ext = file.name.split(".").pop().toLowerCase();
-    if (!allowed.includes(ext)) {
-        if (fileMessage) {
-            fileMessage.innerHTML = "<span style='color: #b91c1c;'>⚠️ Unsupported format '." + escapeHtml(ext) + "'. Please choose PDF, PNG, or JPG.</span>";
+    <script src="js/api.js?v=20261118"></script>
+    <script src="js/script.js?v=11.0"></script>
+    <script>
+        function handleReportFileSelect(input) {
+            var fileMessage = document.getElementById("fileMessage");
+            if (!input || !input.files || !input.files.length) {
+                if (fileMessage) fileMessage.textContent = "";
+                return;
+            }
+            var file = input.files[0];
+            var allowed = ["pdf", "png", "jpg", "jpeg"];
+            var ext = file.name.split(".").pop().toLowerCase();
+            if (!allowed.includes(ext)) {
+                if (fileMessage) {
+                    fileMessage.innerHTML = "<span style='color: #b91c1c;'>⚠️ Unsupported format '." + escapeHtml(ext) + "'. Please choose PDF, PNG, or JPG.</span>";
+                }
+                return;
+            }
+            if (fileMessage) {
+                fileMessage.innerHTML = "<span style='color: #0369a1;'>📄 Ready to analyze: <strong>" + escapeHtml(file.name) + "</strong> (" + (file.size / 1024).toFixed(1) + " KB)</span>";
+            }
         }
-        return;
-    }
-    if (fileMessage) {
-        fileMessage.innerHTML = "<span style='color: #0369a1;'>📄 Ready to analyze: <strong>" + escapeHtml(file.name) + "</strong> (" + (file.size / 1024).toFixed(1) + " KB)</span>";
-    }
-}
 
-async function analyzeReport() {
-    var fileInput = document.getElementById("reportFile");
-    var fileMessage = document.getElementById("fileMessage");
-    var analysisResult = document.getElementById("analysisResult");
-    var btn = document.getElementById("analyzeBtn");
+        async function analyzeReport() {
+            var fileInput = document.getElementById("reportFile");
+            var fileMessage = document.getElementById("fileMessage");
+            var analysisResult = document.getElementById("analysisResult");
+            var btn = document.getElementById("analyzeBtn");
 
-    if (!fileInput || !fileInput.files || !fileInput.files.length) {
-        if (fileMessage) {
-            fileMessage.innerHTML = "<span style='color: #b91c1c; font-weight: bold;'>⚠️ Please click 'Choose File' and select a medical report first!</span>";
-        }
-        return;
-    }
+            if (!fileInput || !fileInput.files || !fileInput.files.length) {
+                if (fileMessage) {
+                    fileMessage.innerHTML = "<span style='color: #b91c1c; font-weight: bold;'>⚠️ Please click 'Choose File' and select a medical report first!</span>";
+                }
+                return;
+            }
 
-    var file = fileInput.files[0];
-    var allowed = ["pdf", "png", "jpg", "jpeg"];
-    var ext = file.name.split(".").pop().toLowerCase();
+            var file = fileInput.files[0];
+            var allowed = ["pdf", "png", "jpg", "jpeg"];
+            var ext = file.name.split(".").pop().toLowerCase();
 
-    if (!allowed.includes(ext)) {
-        if (fileMessage) {
-            fileMessage.innerHTML = "<span style='color: #b91c1c; font-weight: bold;'>⚠️ Unsupported file format '." + escapeHtml(ext) + "'. Please choose PDF, PNG, or JPG.</span>";
-        }
-        return;
-    }
+            if (!allowed.includes(ext)) {
+                if (fileMessage) {
+                    fileMessage.innerHTML = "<span style='color: #b91c1c; font-weight: bold;'>⚠️ Unsupported file format '." + escapeHtml(ext) + "'. Please choose PDF, PNG, or JPG.</span>";
+                }
+                return;
+            }
 
-    if (file.size > 10 * 1024 * 1024) {
-        if (fileMessage) {
-            fileMessage.innerHTML = "<span style='color: #b91c1c; font-weight: bold;'>⚠️ File exceeds 10 MB limit. Please select a smaller file.</span>";
-        }
-        return;
-    }
+            if (file.size > 10 * 1024 * 1024) {
+                if (fileMessage) {
+                    fileMessage.innerHTML = "<span style='color: #b91c1c; font-weight: bold;'>⚠️ File exceeds 10 MB limit. Please select a smaller file.</span>";
+                }
+                return;
+            }
 
-    if (btn) {
-        btn.disabled = true;
-        btn.textContent = "⏳ Analyzing Report with AI...";
-        btn.style.opacity = "0.7";
-        btn.style.cursor = "not-allowed";
-    }
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = "⏳ Analyzing Report with AI...";
+                btn.style.opacity = "0.7";
+                btn.style.cursor = "not-allowed";
+            }
 
-    if (fileMessage) {
-        fileMessage.innerHTML = "<span style='color: #0369a1;'>📄 Uploading <strong>" + escapeHtml(file.name) + "</strong> (" + (file.size / 1024).toFixed(1) + " KB) to AI engine...</span>";
-    }
+            if (fileMessage) {
+                fileMessage.innerHTML = "<span style='color: #0369a1;'>📄 Uploading <strong>" + escapeHtml(file.name) + "</strong> (" + (file.size / 1024).toFixed(1) + " KB) to AI engine...</span>";
+            }
 
-    analysisResult.innerHTML = `
+            analysisResult.innerHTML = `
         <div style="padding: 25px; text-align: center; background: #f8fafc; border-radius: 8px; border: 1px dashed #94a3b8;">
             <div class="spinner" style="width: 28px; height: 28px; margin: 0 auto 12px auto;"></div>
             <p style="font-size: 16px; color: #0f4c81; font-weight: 600;">Analyzing report with MEDICHAIN AI Engine...</p>
             <p style="font-size: 13px; color: #64748b; margin-top: 6px;">Processing clinical text & metrics. File will be automatically cleaned from server memory upon completion.</p>
         </div>
     `;
-    analysisResult.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            analysisResult.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
-    var formData = new FormData();
-    formData.append("file", file);
+            var formData = new FormData();
+            formData.append("file", file);
 
-    var baseUrls = ["http://127.0.0.1:8000", "http://localhost:8000"];
-    var responseData = null;
-    var lastError = null;
+            var baseUrls = ["http://127.0.0.1:8000", "http://localhost:8000"];
+            var responseData = null;
+            var lastError = null;
 
-    for (var i = 0; i < baseUrls.length; i++) {
-        var base = baseUrls[i];
-        try {
-            var controller = (typeof AbortController !== "undefined") ? new AbortController() : null;
-            var timeoutId = controller ? setTimeout(function() { controller.abort(); }, 90000) : null;
+            for (var i = 0; i < baseUrls.length; i++) {
+                var base = baseUrls[i];
+                try {
+                    var controller = (typeof AbortController !== "undefined") ? new AbortController() : null;
+                    var timeoutId = controller ? setTimeout(function () { controller.abort(); }, 90000) : null;
 
-            var resp = await fetch(base + "/api/reports/upload", {
-                method: "POST",
-                body: formData,
-                headers: { "Accept": "application/json" },
-                signal: controller ? controller.signal : undefined
-            });
-            if (timeoutId) clearTimeout(timeoutId);
+                    var resp = await fetch(base + "/api/reports/upload", {
+                        method: "POST",
+                        body: formData,
+                        headers: { "Accept": "application/json" },
+                        signal: controller ? controller.signal : undefined
+                    });
+                    if (timeoutId) clearTimeout(timeoutId);
 
-            if (!resp.ok) {
-                var errJson = null;
-                try { errJson = await resp.json(); } catch(_) {}
-                var msg = (errJson && errJson.detail) ? errJson.detail : ("HTTP " + resp.status + " " + resp.statusText);
-                throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+                    if (!resp.ok) {
+                        var errJson = null;
+                        try { errJson = await resp.json(); } catch (_) { }
+                        var msg = (errJson && errJson.detail) ? errJson.detail : ("HTTP " + resp.status + " " + resp.statusText);
+                        throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+                    }
+
+                    responseData = await resp.json();
+                    break;
+                } catch (err) {
+                    lastError = err;
+                    console.warn("Upload attempt to " + base + " failed:", err);
+                }
             }
 
-            responseData = await resp.json();
-            break;
-        } catch (err) {
-            lastError = err;
-            console.warn("Upload attempt to " + base + " failed:", err);
-        }
-    }
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = "Analyze Report";
+                btn.style.opacity = "1";
+                btn.style.cursor = "pointer";
+            }
 
-    if (btn) {
-        btn.disabled = false;
-        btn.textContent = "Analyze Report";
-        btn.style.opacity = "1";
-        btn.style.cursor = "pointer";
-    }
-
-    if (!responseData) {
-        analysisResult.innerHTML = `
+            if (!responseData) {
+                analysisResult.innerHTML = `
             <div class="connection-banner error" style="padding: 16px; border-radius: 8px; background: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b;">
                 <strong>⚠️ Analysis Failed:</strong> ${escapeHtml(lastError ? lastError.message : "Unable to reach server")}
                 <div style="font-size: 12px; margin-top: 6px; color: #7f1d1d;">
@@ -225,22 +225,22 @@ async function analyzeReport() {
                 </div>
             </div>
         `;
-        return;
-    }
+                return;
+            }
 
-    // STRICT NON-MEDICAL REFUSAL GUARD
-    if (responseData.is_medical === false || (responseData.status && responseData.status.indexOf("Rejected") !== -1)) {
-        analysisResult.innerHTML = `
-            <div style="background: #fff7ed; border-left: 5px solid #ea580c; padding: 22px; border-radius: 8px; color: #9a3412;">
+            // STRICT NON-HEALTH REFUSAL GUARD
+            if (responseData.is_medical === false || (responseData.status && responseData.status.indexOf("Rejected") !== -1)) {
+                analysisResult.innerHTML = `
+            <div style="background: #fff7ed; border-left: 5px solid #ea580c; padding: 22px; border-radius: 8px; color: #9a4612;">
                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
                     <span style="font-size: 24px;">🚫</span>
-                    <h3 style="margin: 0; color: #c2410c; font-size: 19px;">I am only scanning medical reports</h3>
+                    <h3 style="margin: 0; color: #c2410c; font-size: 19px;">I am only scanning reports related to health</h3>
                 </div>
                 <p style="font-size: 15px; margin: 10px 0 14px 0; line-height: 1.5; color: #7c2d12;">
-                    The uploaded document (<strong>${escapeHtml(responseData.filename)}</strong>) does not contain clinical, diagnostic, or medical report data. No analysis or medical information will be provided for non-medical files.
+                    The uploaded document (<strong>${escapeHtml(responseData.filename)}</strong>) is not recognized as a health or medical report. <strong>I am only scanning reports related to health.</strong>
                 </p>
-                <div style="background: #ffedd5; padding: 12px 16px; border-radius: 6px; font-size: 13px; color: #9a3412;">
-                    <strong>Please upload a valid healthcare document, such as:</strong>
+                <div style="background: #ffedd5; padding: 12px 16px; border-radius: 6px; font-size: 13px; color: #9a4612;">
+                    <strong>Please upload a report related to health, such as:</strong>
                     <ul style="margin: 6px 0 0 18px; padding-left: 0;">
                         <li>Pathology & Blood Tests (CBC, Glucose, Lipid Panel, Thyroid, etc.)</li>
                         <li>Doctor Prescriptions & Hospital Discharge Notes</li>
@@ -250,44 +250,44 @@ async function analyzeReport() {
                 </div>
             </div>
         `;
-        analysisResult.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        return;
-    }
+                analysisResult.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                return;
+            }
 
-    // Render result
-    var observationsHtml = "";
-    if (Array.isArray(responseData.key_observations)) {
-        observationsHtml = responseData.key_observations
-            .filter(function(o) { return Boolean(o && o.trim()); })
-            .map(function(obs) { return "<li style='margin-bottom: 8px;'>" + escapeHtml(obs) + "</li>"; })
-            .join("");
-    }
+            // Render result
+            var observationsHtml = "";
+            if (Array.isArray(responseData.key_observations)) {
+                observationsHtml = responseData.key_observations
+                    .filter(function (o) { return Boolean(o && o.trim()); })
+                    .map(function (obs) { return "<li style='margin-bottom: 8px;'>" + escapeHtml(obs) + "</li>"; })
+                    .join("");
+            }
 
-    var findingsHtml = "";
-    if (Array.isArray(responseData.extracted_findings) && responseData.extracted_findings.length > 0) {
-        var findingsList = responseData.extracted_findings
-            .map(function(f) { return "<li style='margin-bottom: 6px;'><code>" + escapeHtml(f) + "</code></li>"; })
-            .join("");
-        findingsHtml = `
+            var findingsHtml = "";
+            if (Array.isArray(responseData.extracted_findings) && responseData.extracted_findings.length > 0) {
+                var findingsList = responseData.extracted_findings
+                    .map(function (f) { return "<li style='margin-bottom: 6px;'><code>" + escapeHtml(f) + "</code></li>"; })
+                    .join("");
+                findingsHtml = `
             <div class="report-section-block" style="border-left: 4px solid #6366f1; background: #f5f3ff; padding: 14px 18px; border-radius: 6px; margin-top: 15px;">
                 <h4 style="color: #4338ca; margin-bottom: 8px;">🔬 Extracted Clinical Metrics & Lab Values</h4>
                 <ul style="padding-left: 20px; color: #1e1b4b;">${findingsList}</ul>
             </div>
         `;
-    }
+            }
 
-    var questionsHtml = "";
-    if (Array.isArray(responseData.suggested_questions_for_doctor)) {
-        questionsHtml = responseData.suggested_questions_for_doctor
-            .map(function(q) { return "<li style='margin-bottom: 8px;'>" + escapeHtml(q) + "</li>"; })
-            .join("");
-    }
+            var questionsHtml = "";
+            if (Array.isArray(responseData.suggested_questions_for_doctor)) {
+                questionsHtml = responseData.suggested_questions_for_doctor
+                    .map(function (q) { return "<li style='margin-bottom: 8px;'>" + escapeHtml(q) + "</li>"; })
+                    .join("");
+            }
 
-    analysisResult.innerHTML = `
+            analysisResult.innerHTML = `
         <div style="margin-bottom: 15px; display: flex; gap: 8px; flex-wrap: wrap;">
-            <span style="background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;">✓ Memory Cleaned (Zero-Retention)</span>
+            <span style="background: #dcfce7; color: #166546; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;">✓ Memory Cleaned (Zero-Retention)</span>
             <span style="background: #e0f2fe; color: #075985; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;">AI Engine: ${escapeHtml(responseData.extraction_method || "gemini_ai")}</span>
-            <span style="background: #f1f5f9; color: #334155; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;">Status: ${escapeHtml(responseData.status || "Completed")}</span>
+            <span style="background: #f1f5f9; color: #346155; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;">Status: ${escapeHtml(responseData.status || "Completed")}</span>
         </div>
 
         <h3 style="color: #0f4c81; margin-bottom: 8px; font-size: 18px;">${escapeHtml(responseData.summary_title || "Preliminary Clinical Summary")}</h3>
@@ -313,13 +313,22 @@ async function analyzeReport() {
         <p class="disclaimer" style="margin-top: 20px; padding: 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; color: #92400e; font-size: 12px;">
             ⚠️ <strong>Medical Notice:</strong> ${escapeHtml(responseData.disclaimer || "Preliminary summary generated for educational guidance only. This tool is NOT a diagnostic medical device.")}
         </p>
+
+        <div class="speak-aloud-container" style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #e2e8f0;">
+            <button type="button" class="speak-aloud-btn" onclick="toggleSpeech(this)"
+                data-speech-text="${escapeHtml((responseData.key_observations || []).map(function(o){ return o.replace(/[*_#`]/g, ''); }).join('. ') + '. ' + (responseData.suggested_questions_for_doctor || []).join('. '))}"
+                title="Listen to report summary (Text to Speech)" aria-label="Speak report summary out loud">
+                <span>🔊</span> <span>Speak Out Loud</span>
+            </button>
+        </div>
     `;
 
-    analysisResult.scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
+            analysisResult.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
 
-window.analyzeReport = analyzeReport;
-window.handleReportFileSelect = handleReportFileSelect;
-</script>
+        window.analyzeReport = analyzeReport;
+        window.handleReportFileSelect = handleReportFileSelect;
+    </script>
 </body>
+
 </html>

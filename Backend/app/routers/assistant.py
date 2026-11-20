@@ -18,6 +18,7 @@ def chat_with_assistant(request: ChatRequest):
         question=request.message,
         history=history_dicts,
         context=request.context,
+        language=request.language or "en",
     )
 
     return ChatResponse(
