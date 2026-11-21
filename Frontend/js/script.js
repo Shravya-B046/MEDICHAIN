@@ -24,7 +24,7 @@ function getApiClient() {
 
     var fallbackClient = {
         baseUrl: baseUrl,
-        request: async function(endpoint, options) {
+        request: async function (endpoint, options) {
             options = options || {};
             var url = this.baseUrl + endpoint;
             var headers = Object.assign({ "Accept": "application/json" }, options.headers || {});
@@ -42,31 +42,31 @@ function getApiClient() {
                 try {
                     var d = await res.json();
                     if (d && d.detail) errText = typeof d.detail === "string" ? d.detail : JSON.stringify(d.detail);
-                } catch(_) {}
+                } catch (_) { }
                 throw new Error(errText);
             }
             return await res.json();
         },
-        checkHealth: function() { return this.request("/api/health"); },
-        sendChatMessage: function(message, context, history) {
+        checkHealth: function () { return this.request("/api/health"); },
+        sendChatMessage: function (message, context, history) {
             return this.request("/api/assistant/chat", { method: "POST", body: { message: message, context: context || null, history: history || [] } });
         },
-        getResources: function() { return this.request("/api/resources"); },
-        getResourceSummary: function() { return this.request("/api/resources/summary"); },
-        getEmergencies: function() { return this.request("/api/emergency"); },
-        getEmergencySummary: function() { return this.request("/api/emergency/summary"); },
-        createEmergency: function(data) { return this.request("/api/emergency", { method: "POST", body: data }); },
-        updateEmergencyStatus: function(caseId, status, priority) {
+        getResources: function () { return this.request("/api/resources"); },
+        getResourceSummary: function () { return this.request("/api/resources/summary"); },
+        getEmergencies: function () { return this.request("/api/emergency"); },
+        getEmergencySummary: function () { return this.request("/api/emergency/summary"); },
+        createEmergency: function (data) { return this.request("/api/emergency", { method: "POST", body: data }); },
+        updateEmergencyStatus: function (caseId, status, priority) {
             return this.request("/api/emergency/" + caseId + "/status", { method: "PATCH", body: { status: status, priority: priority || null } });
         },
-        uploadReport: function(file) {
+        uploadReport: function (file) {
             var fd = new FormData();
             fd.append("file", file);
             return this.request("/api/reports/upload", { method: "POST", body: fd });
         },
-        getHospitals: function() { return this.request("/api/hospitals"); },
-        createHospital: function(data) { return this.request("/api/hospitals", { method: "POST", body: data }); },
-        deleteHospital: function(id) { return this.request("/api/hospitals/" + id, { method: "DELETE" }); }
+        getHospitals: function () { return this.request("/api/hospitals"); },
+        createHospital: function (data) { return this.request("/api/hospitals", { method: "POST", body: data }); },
+        deleteHospital: function (id) { return this.request("/api/hospitals/" + id, { method: "DELETE" }); }
     };
 
     if (typeof window !== "undefined") {
@@ -274,7 +274,7 @@ async function sendMessage() {
             var sourceContainer = document.createElement("div");
             sourceContainer.className = "source-pill-container";
             sourceContainer.innerHTML = '<span style="font-size: 11px; color: #64748b; font-weight: 600;">References:</span>';
-            data.verified_sources.forEach(function(src) {
+            data.verified_sources.forEach(function (src) {
                 var pill = document.createElement("span");
                 pill.className = "source-pill";
                 pill.textContent = src;
@@ -572,7 +572,7 @@ function toggleVoiceInput() {
     if (isListening && recognitionInstance) {
         try {
             recognitionInstance.stop();
-        } catch (e) {}
+        } catch (e) { }
         return;
     }
 
@@ -584,11 +584,11 @@ function toggleVoiceInput() {
         try {
             recognitionInstance.start();
         } catch (e) {
-            try { recognitionInstance.stop(); } catch (err) {}
+            try { recognitionInstance.stop(); } catch (err) { }
             recognitionInstance = initVoiceRecognition();
             if (recognitionInstance) {
                 setTimeout(function () {
-                    try { recognitionInstance.start(); } catch (err) {}
+                    try { recognitionInstance.start(); } catch (err) { }
                 }, 200);
             }
         }
@@ -671,8 +671,8 @@ async function loadResourceDashboard() {
         if (resOccupiedBeds) resOccupiedBeds.textContent = summary.occupied_beds;
         if (resIcuBeds) resIcuBeds.textContent = summary.icu_beds;
         if (resDoctors) resDoctors.textContent = summary.doctors_on_duty;
-        if (resAmbulances) resAmbulances.textContent = summary.available_ambulances < 10 
-            ? "0" + summary.available_ambulances 
+        if (resAmbulances) resAmbulances.textContent = summary.available_ambulances < 10
+            ? "0" + summary.available_ambulances
             : summary.available_ambulances;
 
         // 2. Render Resource Table
@@ -696,7 +696,7 @@ function filterResources() {
     var query = (searchInput ? searchInput.value : "").trim().toLowerCase();
     var category = categoryFilter ? categoryFilter.value : "all";
 
-    var filtered = cachedResources.filter(function(item) {
+    var filtered = cachedResources.filter(function (item) {
         var name = (item.resource_type || "").toLowerCase();
 
         // Category filter check
@@ -730,7 +730,7 @@ function renderResourceRows(items) {
     }
 
     tableBody.innerHTML = "";
-    items.forEach(function(res) {
+    items.forEach(function (res) {
         var tr = document.createElement("tr");
 
         var statusClass = "available";
@@ -754,14 +754,14 @@ function renderResourceRows(items) {
 // MODULE 3: EMERGENCY COORDINATION (emergency.html)
 // ============================================================================
 
-var cachedEmergencies = (function() {
+var cachedEmergencies = (function () {
     try {
         var stored = localStorage.getItem("medichain_emergencies");
         if (stored) {
             var parsed = JSON.parse(stored);
             if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         }
-    } catch (_) {}
+    } catch (_) { }
 
     return [
         { case_id: "EMG001", emergency_type: "Road Accident", location: "Mangaluru", hospital_name: "City Hospital", priority: "Critical", status: "Ambulance Sent" },
@@ -775,12 +775,12 @@ var cachedEmergencies = (function() {
 function saveEmergenciesToStorage(list) {
     try {
         localStorage.setItem("medichain_emergencies", JSON.stringify(list));
-    } catch (_) {}
+    } catch (_) { }
 }
 
 function filterEmergencyView(view) {
     var tabs = ["all", "pending", "dispatched", "resolved"];
-    tabs.forEach(function(t) {
+    tabs.forEach(function (t) {
         var btn = document.getElementById("tabBtn" + t.charAt(0).toUpperCase() + t.slice(1));
         if (btn) {
             if (t === view) {
@@ -809,7 +809,7 @@ function renderEmergencyRows(cases, type, highlightedCaseId) {
         return `<tr><td colspan="7" class="empty-case-msg">${emptyText}</td></tr>`;
     }
 
-    return cases.map(function(c) {
+    return cases.map(function (c) {
         var p = (c.priority || "").toLowerCase();
         var priorityClass = "available";
         if (p === "critical") priorityClass = "occupied";
@@ -856,7 +856,7 @@ function renderCategorizedEmergencies(emergencies, highlightedCaseId) {
     var dispatchedCases = [];
     var resolvedCases = [];
 
-    (emergencies || []).forEach(function(c) {
+    (emergencies || []).forEach(function (c) {
         var st = (c.status || "").toLowerCase();
         if (st === "resolved" || st === "closed" || st === "completed") {
             resolvedCases.push(c);
@@ -873,7 +873,7 @@ function renderCategorizedEmergencies(emergencies, highlightedCaseId) {
     var emgDispatched = document.getElementById("emgDispatched");
     var emgResolved = document.getElementById("emgResolved");
 
-    var fmt = function(num) {
+    var fmt = function (num) {
         return num < 10 ? "0" + num : "" + num;
     };
 
@@ -929,8 +929,8 @@ async function loadEmergencyDashboard() {
     try {
         var client = getApiClient();
         var results = await Promise.all([
-            client.getEmergencySummary().catch(function() { return null; }),
-            client.getEmergencies().catch(function() { return null; })
+            client.getEmergencySummary().catch(function () { return null; }),
+            client.getEmergencies().catch(function () { return null; })
         ]);
         var liveEmergencies = results[1];
 
@@ -983,7 +983,7 @@ async function handleEmergencySubmit(event) {
 
     // Generate local fallback case code
     var maxNum = 0;
-    cachedEmergencies.forEach(function(item) {
+    cachedEmergencies.forEach(function (item) {
         var match = (item.case_id || "").match(/\d+/);
         if (match) {
             var n = parseInt(match[0], 10);
@@ -1012,7 +1012,7 @@ async function handleEmergencySubmit(event) {
         secPending.style.display = "block";
         try {
             secPending.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        } catch (_) {}
+        } catch (_) { }
     }
 
     try {
@@ -1193,7 +1193,7 @@ async function analyzeReport() {
         var observationsHtml = "";
         if (Array.isArray(result.key_observations)) {
             observationsHtml = result.key_observations
-                .map(function(obs) { return `<li>${escapeHtml(obs)}</li>`; })
+                .map(function (obs) { return `<li>${escapeHtml(obs)}</li>`; })
                 .join("");
         }
 
@@ -1201,7 +1201,7 @@ async function analyzeReport() {
         var findingsBlockHtml = "";
         if (Array.isArray(result.extracted_findings) && result.extracted_findings.length > 0) {
             var findingsList = result.extracted_findings
-                .map(function(f) { return `<li><code>${escapeHtml(f)}</code></li>`; })
+                .map(function (f) { return `<li><code>${escapeHtml(f)}</code></li>`; })
                 .join("");
             findingsBlockHtml = `
                 <div class="report-section-block" style="border-left-color: #6366f1; margin-top: 15px;">
@@ -1215,7 +1215,7 @@ async function analyzeReport() {
         var questionsHtml = "";
         if (Array.isArray(result.suggested_questions_for_doctor)) {
             questionsHtml = result.suggested_questions_for_doctor
-                .map(function(q) { return `<li>${escapeHtml(q)}</li>`; })
+                .map(function (q) { return `<li>${escapeHtml(q)}</li>`; })
                 .join("");
         }
 
@@ -1280,16 +1280,16 @@ async function loadIndexOverview() {
     try {
         var client = getApiClient();
         var results = await Promise.all([
-            client.getHospitals().catch(function() { return []; }),
-            client.getResourceSummary().catch(function() { return null; }),
-            client.getEmergencySummary().catch(function() { return null; })
+            client.getHospitals().catch(function () { return []; }),
+            client.getResourceSummary().catch(function () { return null; }),
+            client.getEmergencySummary().catch(function () { return null; })
         ]);
         var hospitals = results[0];
         var resourceSummary = results[1];
         var emergencySummary = results[2];
 
         if (Array.isArray(hospitals) && statHospitals) {
-            statHospitals.textContent = 24 + hospitals.filter(function(h) { return !h.is_sample; }).length;
+            statHospitals.textContent = 24 + hospitals.filter(function (h) { return !h.is_sample; }).length;
         }
 
         var statBeds = document.getElementById("overviewBeds");
@@ -1367,7 +1367,7 @@ function escapeHtml(str) {
 // DOM READY INITIALIZATION
 // ============================================================================
 
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function () {
     // 1. Restore sidebar minimized/maximized state
     var isCollapsed = localStorage.getItem("medichain_sidebar_collapsed") === "true";
     if (isCollapsed) {
@@ -1380,7 +1380,7 @@ document.addEventListener("DOMContentLoaded", function() {
     // 2. Enter key support for AI assistant
     var input = document.getElementById("userInput");
     if (input) {
-        input.addEventListener("keydown", function(event) {
+        input.addEventListener("keydown", function (event) {
             if (event.key === "Enter") {
                 sendMessage();
             }

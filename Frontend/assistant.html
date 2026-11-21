@@ -55,9 +55,11 @@
             0% {
                 box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
             }
+
             70% {
                 box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
             }
+
             100% {
                 box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
             }
@@ -923,91 +925,85 @@
             if (typeof navigator.onLine !== "undefined" && !navigator.onLine) {
                 updateVoiceState(false);
                 showVoiceStatus("⚠️ <strong>Internet required:</strong> Google Chrome speech recognition requires an active internet connection to Google Speech servers.", true);
-                alert("Internet connection required for Speech-to-Text.\n\nGoogle Chrome sends audio to Google's cloud speech recognition engine to transcribe text. Your computer appears to be offline. Please connect to the internet (Wi-Fi or hotspot) to use the microphone.");
+                alert("Internet connection required for Speech-to-Text.\n\nGoogle Chrome sends audio to Google's cloud speech recognition engine to transcribe text. Your computer appears to be offline. Please connect        rnet (Wi-Fi or             the microphone.");
+            }
+
+            try                f(voiceRecogni                        { ition.abort(); }                           }
+
+                voic                peechRecognition();
+        ion.continuous = tru                    Recognition.int
+        ar = languageConcurruage] || languageConfig["en"];
+        voiceRecognition.lang = (activeConfig && activeConfig.speechLang) ? activeConfig.speechLang : "en-US";
+
+        voiceRecognition.onstart = function () {
+            isVoiceListening = true;
+            updateVoiceState(true);
+            showVoiceStatus("🔴 <strong>Listening...</strong> Speak your symptoms clearly now (click mic again to stop)", false);
+        };
+
+        voiceRecognition.onresult = function (event) {
+            var userInput = document.getElementById("userInput");
+            if (!userInput) return;
+
+            var fullTranscript = "";
+            for (var i = 0; i < event.results.length; i++) {
+                fullTranscript += event.results[i][0].transcript;
+            }
+
+            if (fullTranscript.trim()) {
+                userInput.value = fullTranscript;
+                userInput.focus();
+                showVoiceStatus("🎙️ Heard: \"<em>" + escapeHtml(fullTranscript) + "</em>\"", false);
+            }
+        };
+
+        voiceRecognition.onerror = function (event) {
+            console.warn("Speech recognition notice:", event.error);
+
+            // Ignore transient no-speech so natural speech pauses don't cancel recording
+            if (event.error === "no-speech") {
+                showVoiceStatus("🎙️ Still listening... speak into your microphone", false);
                 return;
             }
 
-            try {
-                if (voiceRecognition) {
-                    try { voiceRecognition.abort(); } catch (e) { }
-                }
+            isVoiceListening = false;
+            updateVoiceState(false);
 
-                voiceRecognition = new SpeechRecognition();
-                voiceRecognition.continuous = true;
-                voiceRecognition.interimResults = true;
-
-                var activeConfig = languageConfig[currentLanguage] || languageConfig["en"];
-                voiceRecognition.lang = (activeConfig && activeConfig.speechLang) ? activeConfig.speechLang : "en-US";
-
-                voiceRecognition.onstart = function () {
-                    isVoiceListening = true;
-                    updateVoiceState(true);
-                    showVoiceStatus("🔴 <strong>Listening...</strong> Speak your symptoms clearly now (click mic again to stop)", false);
-                };
-
-                voiceRecognition.onresult = function (event) {
-                    var userInput = document.getElementById("userInput");
-                    if (!userInput) return;
-
-                    var fullTranscript = "";
-                    for (var i = 0; i < event.results.length; i++) {
-                        fullTranscript += event.results[i][0].transcript;
-                    }
-
-                    if (fullTranscript.trim()) {
-                        userInput.value = fullTranscript;
-                        userInput.focus();
-                        showVoiceStatus("🎙️ Heard: \"<em>" + escapeHtml(fullTranscript) + "</em>\"", false);
-                    }
-                };
-
-                voiceRecognition.onerror = function (event) {
-                    console.warn("Speech recognition notice:", event.error);
-
-                    // Ignore transient no-speech so natural speech pauses don't cancel recording
-                    if (event.error === "no-speech") {
-                        showVoiceStatus("🎙️ Still listening... speak into your microphone", false);
-                        return;
-                    }
-
-                    isVoiceListening = false;
-                    updateVoiceState(false);
-
-                    if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-                        showVoiceStatus("🚫 <strong>Microphone blocked:</strong> Click the 🔒 / tune icon in your URL bar, set <strong>Microphone</strong> to <strong>Allow</strong>, then refresh.", true);
-                        alert("Microphone permission was denied.\n\nPlease click the lock 🔒 or settings icon in your Chrome URL bar next to localhost:8081 and toggle Microphone to 'Allow'.");
-                    } else if (event.error === "network") {
-                        showVoiceStatus("⚠️ <strong>Speech network error:</strong> Chrome speech recognition requires an active internet connection to Google's speech cloud. Please check your Wi-Fi/Internet connection.", true);
-                        alert("Speech Recognition Network Error.\n\nGoogle Chrome sends audio to Google's cloud speech recognition engine to transcribe text. Your computer appears to have no internet access or is blocking google.com.\n\nPlease connect your computer to Wi-Fi/Internet to use voice typing, or type your question directly in the text box.");
-                    } else if (event.error === "audio-capture") {
-                        showVoiceStatus("⚠️ <strong>No microphone detected:</strong> Please check your microphone connection in Windows sound settings.", true);
-                    } else if (event.error === "language-not-supported") {
-                        try {
-                            voiceRecognition.lang = "en-US";
-                            voiceRecognition.start();
-                        } catch (e) { }
-                    } else {
-                        showVoiceStatus("⚠️ Speech recognition error: " + event.error, true);
-                    }
-                };
-
-                voiceRecognition.onend = function () {
-                    isVoiceListening = false;
-                    updateVoiceState(false);
-                    var userInput = document.getElementById("userInput");
-                    if (userInput && userInput.value.trim().length > 0) {
-                        userInput.focus();
-                        showVoiceStatus("✓ Voice input captured! Click <strong>Send ➤</strong> or press Enter.", false);
-                    }
-                };
-
-                voiceRecognition.start();
-            } catch (err) {
-                console.error("Speech recognition startup error:", err);
-                isVoiceListening = false;
-                updateVoiceState(false);
-                showVoiceStatus("⚠️ Could not start speech recognition: " + err.message, true);
+            if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+                showVoiceStatus("🚫 <strong>Microphone blocked:</strong> Click the 🔒 / tune icon in your URL bar, set <strong>Microphone</strong> to <strong>Allow</strong>, then refresh.", true);
+                alert("Microphone permission was denied.\n\nPlease click the lock 🔒 or settings icon in your Chrome URL bar next to localhost:8081 and toggle Microphone to 'Allow'.");
+            } else if (event.error === "network") {
+                showVoiceStatus("⚠️ <strong>Speech network error:</strong> Chrome speech recognition requires an active internet connection to Google's speech cloud. Please check your Wi-Fi/Internet connection.", true);
+                alert("Speech Recognition Network Error.\n\nGoogle Chrome sends audio to Google's cloud speech recognition engine to transcribe text. Your computer appears to have no internet access or is blocking google.com.\n\nPlease connect your computer to Wi-Fi/Internet to use voice typing, or type your question directly in the text box.");
+            } else if (event.error === "audio-capture") {
+                showVoiceStatus("⚠️ <strong>No microphone detected:</strong> Please check your microphone connection in Windows sound settings.", true);
+            } else if (event.error === "language-not-supported") {
+                try {
+                    voiceRecognition.lang = "en-US";
+                    voiceRecognition.start();
+                } catch (e) { }
+            } else {
+                showVoiceStatus("⚠️ Speech recognition error: " + event.error, true);
             }
+        };
+
+        voiceRecognition.onend = function () {
+            isVoiceListening = false;
+            updateVoiceState(false);
+            var userInput = document.getElementById("userInput");
+            if (userInput && userInput.value.trim().length > 0) {
+                userInput.focus();
+                showVoiceStatus("✓ Voice input captured! Click <strong>Send ➤</strong> or press Enter.", false);
+            }
+        };
+
+        voiceRecognition.start();
+            } catch (err) {
+            console.error("Speech recognition startup error:", err);
+            isVoiceListening = false;
+            updateVoiceState(false);
+            showVoiceStatus("⚠️ Could not start speech recognition: " + err.message, true);
+        }
         }
 
         function updateVoiceState(listening) {
@@ -1091,20 +1087,20 @@
         } else {
             initPage();
         }
-            if (sendBtn) {
-                sendBtn.onclick = function (e) {
+        if (sendBtn) {
+            sendBtn.onclick = function (e) {
+                e.preventDefault();
+                sendMessage();
+            };
+        }
+        if (userInput) {
+            userInput.onkeydown = function (e) {
+                if (e.key === "Enter") {
                     e.preventDefault();
                     sendMessage();
-                };
-            }
-            if (userInput) {
-                userInput.onkeydown = function (e) {
-                    if (e.key === "Enter") {
-                        e.preventDefault();
-                        sendMessage();
-                    }
-                };
-            }
+                }
+            };
+        }
         });
     </script>
 
