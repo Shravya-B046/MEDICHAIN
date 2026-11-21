@@ -438,7 +438,7 @@ function initVoiceRecognition() {
     }
 
     var recognition = new SpeechRecognition();
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = navigator.language || "en-US";
 
@@ -456,7 +456,7 @@ function initVoiceRecognition() {
             transcript += event.results[i][0].transcript;
         }
 
-        if (transcript) {
+        if (transcript.trim()) {
             input.value = transcript;
             input.focus();
         }
@@ -464,8 +464,11 @@ function initVoiceRecognition() {
 
     recognition.onerror = function (event) {
         console.warn("Speech recognition notice:", event.error);
+        if (event.error === "no-speech") {
+            return;
+        }
         if (event.error === "not-allowed") {
-            alert("Microphone permission was denied. Please allow microphone access in your browser settings to use voice input.");
+            alert("Microphone permission was denied. Please click the lock 🔒 / tune icon next to localhost in the URL bar and set Microphone to Allow.");
         }
         isListening = false;
         updateVoiceUI(false);

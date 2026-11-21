@@ -616,7 +616,7 @@
 
         function stopSpeaking() {
             if ("speechSynthesis" in window) {
-                window.speechSynthesis.cancel();
+                try { window.speechSynthesis.cancel(); } catch (e) { }
             }
             if (activeSpeakingBtn) {
                 activeSpeakingBtn.classList.remove("speaking");
@@ -625,6 +625,7 @@
                 activeSpeakingBtn = null;
             }
             currentSpeechUtterance = null;
+            window._activeSpeechUtterance = null;
         }
 
         function toggleSpeech(btn) {
@@ -641,6 +642,11 @@
 
             // Stop any ongoing speech
             stopSpeaking();
+
+            // Resume speech synthesis in case Chrome entered a paused/stuck state
+            if (window.speechSynthesis.paused) {
+                try { window.speechSynthesis.resume(); } catch (e) { }
+            }
 
             var textToSpeak = btn.dataset.speechText;
             if (!textToSpeak) {
@@ -660,6 +666,12 @@
             utterance.rate = 1.0;
             utterance.pitch = 1.0;
 
+            // Set speech language based on active language
+            var activeConfig = languageConfig[currentLanguage] || languageConfig["en"];
+            if (activeConfig && activeConfig.speechLang) {
+                utterance.lang = activeConfig.speechLang;
+            }
+
             utterance.onstart = function () {
                 activeSpeakingBtn = btn;
                 btn.classList.add("speaking");
@@ -676,7 +688,9 @@
                 stopSpeaking();
             };
 
+            // Prevent Chrome garbage collector bug by anchoring to window
             currentSpeechUtterance = utterance;
+            window._activeSpeechUtterance = utterance;
             window.speechSynthesis.speak(utterance);
         }
 
@@ -740,6 +754,19 @@
         var voiceRecognition = null;
         var isVoiceListening = false;
 
+        function showVoiceStatus(msg, isError) {
+            var statusPill = document.getElementById("voiceStatusPill");
+            if (!statusPill) return;
+            statusPill.style.display = "flex";
+            statusPill.style.background = isError ? "#fef2f2" : "#f0fdf4";
+            statusPill.style.border = isError ? "1px solid #fecaca" : "1px solid #bbf7d0";
+            var span = statusPill.querySelector("span:last-child");
+            if (span) {
+                span.style.color = isError ? "#991b1b" : "#166534";
+                span.innerHTML = msg;
+            }
+        }
+
         function setupVoiceInput() {
             var micBtn = document.getElementById("micBtn");
             if (!micBtn) return;
@@ -748,7 +775,7 @@
             if (!SpeechRecognition) {
                 micBtn.onclick = function (e) {
                     e.preventDefault();
-                    alert("Voice input is not supported in this browser.\n\nPlease open MEDICHAIN in Google Chrome, Microsoft Edge, or Safari to use microphone input.");
+                    showVoiceStatus("⚠️ Speech recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge.", true);
                 };
                 return;
             }
@@ -762,25 +789,34 @@
         function toggleVoiceRecognition() {
             var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
-                alert("Voice input is not supported in this browser.\n\nPlease open MEDICHAIN in Google Chrome, Microsoft Edge, or Safari to use microphone input.");
+                showVoiceStatus("⚠️ Speech recognition requires Google Chrome or Microsoft Edge.", true);
                 return;
             }
+
+            // Stop any ongoing Text-to-Speech playback so mic doesn't hear computer speaker
+            stopSpeaking();
 
             if (isVoiceListening && voiceRecognition) {
                 try {
                     voiceRecognition.stop();
                 } catch (e) { }
+                isVoiceListening = false;
+                updateVoiceState(false);
                 return;
             }
 
             try {
+                if (voiceRecognition) {
+                    try { voiceRecognition.abort(); } catch (e) { }
+                }
+
                 voiceRecognition = new SpeechRecognition();
-                voiceRecognition.continuous = false;
+                // continuous = true allows natural pauses without sudden premature cutoffs
+                voiceRecognition.continuous = true;
                 voiceRecognition.interimResults = true;
 
-                // Set speech recognition language based on active selected language
                 var activeConfig = languageConfig[currentLanguage] || languageConfig["en"];
-                voiceRecognition.lang = activeConfig.speechLang;
+                voiceRecognition.lang = (activeConfig && activeConfig.speechLang) ? activeConfig.speechLang : "en-US";
 
                 voiceRecognition.onstart = function () {
                     isVoiceListening = true;
@@ -791,26 +827,39 @@
                     var userInput = document.getElementById("userInput");
                     if (!userInput) return;
 
-                    var currentTranscript = "";
+                    var fullTranscript = "";
                     for (var i = 0; i < event.results.length; i++) {
-                        currentTranscript += event.results[i][0].transcript;
+                        fullTranscript += event.results[i][0].transcript;
                     }
 
-                    if (currentTranscript) {
-                        userInput.value = currentTranscript;
+                    if (fullTranscript.trim()) {
+                        userInput.value = fullTranscript;
                         userInput.focus();
                     }
                 };
 
                 voiceRecognition.onerror = function (event) {
                     console.warn("Speech recognition notice:", event.error);
+
+                    // Ignore transient no-speech so natural speech pauses don't cancel recording
+                    if (event.error === "no-speech") {
+                        return;
+                    }
+
                     isVoiceListening = false;
                     updateVoiceState(false);
 
                     if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-                        alert("Microphone permission was not allowed.\n\nTo enable:\n1. Click the lock 🔒 icon next to the URL in your browser.\n2. Set 'Microphone' to 'Allow'.\n3. Click the mic button again.");
+                        showVoiceStatus("⚠️ <strong>Microphone blocked:</strong> Click the 🔒 / tune icon in your URL bar, set <strong>Microphone</strong> to <strong>Allow</strong>, then click the mic again.", true);
                     } else if (event.error === "network") {
-                        alert("Speech recognition network error. Please check your internet connection.");
+                        showVoiceStatus("⚠️ <strong>Network required:</strong> Chrome speech recognition requires an internet connection to Google Speech servers.", true);
+                    } else if (event.error === "audio-capture") {
+                        showVoiceStatus("⚠️ <strong>No microphone detected:</strong> Please check your microphone connection in Windows sound settings.", true);
+                    } else if (event.error === "language-not-supported") {
+                        try {
+                            voiceRecognition.lang = "en-US";
+                            voiceRecognition.start();
+                        } catch (e) { }
                     }
                 };
 
@@ -828,6 +877,7 @@
                 console.error("Speech recognition startup error:", err);
                 isVoiceListening = false;
                 updateVoiceState(false);
+                showVoiceStatus("⚠️ Could not access microphone. Please check browser permissions.", true);
             }
         }
 
@@ -840,7 +890,7 @@
             if (micBtn) {
                 if (listening) {
                     micBtn.classList.add("listening");
-                    micBtn.title = "Listening... Click to stop";
+                    micBtn.title = "Listening to your symptoms... Click to stop";
                     micBtn.setAttribute("aria-label", "Listening... Click to stop");
                 } else {
                     micBtn.classList.remove("listening");
@@ -864,8 +914,11 @@
 
             if (statusPill) {
                 statusPill.style.display = listening ? "flex" : "none";
+                statusPill.style.background = "#fef2f2";
+                statusPill.style.border = "1px solid #fecaca";
                 var statusSpan = statusPill.querySelector("span:last-child");
                 if (statusSpan) {
+                    statusSpan.style.color = "#991b1b";
                     statusSpan.textContent = activeConfig.listeningText;
                 }
             }
@@ -881,13 +934,34 @@
         window.toggleSpeech = toggleSpeech;
         window.stopSpeaking = stopSpeaking;
 
-        window.addEventListener("DOMContentLoaded", function () {
+        function initPage() {
             checkDirectStatus();
             setLanguage(currentLanguage);
             setupVoiceInput();
 
             var sendBtn = document.getElementById("sendBtn");
             var userInput = document.getElementById("userInput");
+            if (sendBtn) {
+                sendBtn.onclick = function (e) {
+                    e.preventDefault();
+                    sendMessage();
+                };
+            }
+            if (userInput) {
+                userInput.onkeydown = function (e) {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                };
+            }
+        }
+
+        if (document.readyState === "loading") {
+            window.addEventListener("DOMContentLoaded", initPage);
+        } else {
+            initPage();
+        }
             if (sendBtn) {
                 sendBtn.onclick = function (e) {
                     e.preventDefault();
