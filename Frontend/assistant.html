@@ -55,9 +55,11 @@
             0% {
                 box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
             }
+
             70% {
                 box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
             }
+
             100% {
                 box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
             }
@@ -241,14 +243,20 @@
 
 
                 <!-- Image/File Attachment Preview Badge -->
-                <div id="imagePreviewContainer" style="display: none; padding: 10px 20px 0 20px; align-items: center; gap: 10px;">
-                    <div style="background: #e0f2fe; border: 2px solid #38bdf8; border-radius: 8px; padding: 8px 14px; display: inline-flex; align-items: center; gap: 10px; font-size: 14px; color: #0369a1; box-shadow: 0 2px 6px rgba(2,132,199,0.15);">
+                <div id="imagePreviewContainer"
+                    style="display: none; padding: 10px 20px 0 20px; align-items: center; gap: 10px;">
+                    <div
+                        style="background: #e0f2fe; border: 2px solid #38bdf8; border-radius: 8px; padding: 8px 14px; display: inline-flex; align-items: center; gap: 10px; font-size: 14px; color: #0369a1; box-shadow: 0 2px 6px rgba(2,132,199,0.15);">
                         <span id="previewThumb" style="font-size: 18px;">📎</span>
                         <div>
-                            <strong id="previewFileName" style="display: block; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></strong>
-                            <span style="font-size: 11px; color: #0284c7;">File attached! Click 'Send' to analyze with MEDICHAIN AI</span>
+                            <strong id="previewFileName"
+                                style="display: block; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></strong>
+                            <span style="font-size: 11px; color: #0284c7;">File attached! Click 'Send' to analyze with
+                                MEDICHAIN AI</span>
                         </div>
-                        <button type="button" onclick="clearSelectedImage()" style="background: #bae6fd; border: none; color: #0369a1; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 14px; font-weight: bold; line-height: 24px; padding: 0; margin-left: 8px;" title="Remove attachment">✕</button>
+                        <button type="button" onclick="clearSelectedImage()"
+                            style="background: #bae6fd; border: none; color: #0369a1; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 14px; font-weight: bold; line-height: 24px; padding: 0; margin-left: 8px;"
+                            title="Remove attachment">✕</button>
                     </div>
                 </div>
 
@@ -259,14 +267,20 @@
                 </div>
 
                 <!-- Input -->
-                <div class="chat-input" style="align-items: center; display: flex; gap: 10px; background: #f8fafc; border-top: 2px solid #e2e8f0; padding: 14px 20px;">
+                <div class="chat-input"
+                    style="align-items: center; display: flex; gap: 10px; background: #f8fafc; border-top: 2px solid #e2e8f0; padding: 14px 20px;">
 
-                    <input type="file" id="assistantFileInput" accept="image/png,image/jpeg,image/jpg,image/webp,.pdf" style="display: none;" onchange="handleAssistantFileSelect(event)">
+                    <input type="file" id="assistantFileInput" accept="image/png,image/jpeg,image/jpg,image/webp,.pdf"
+                        style="display: none;" onchange="handleAssistantFileSelect(event)">
 
                     <div class="chat-input-wrapper">
                         <!-- Standard '+' Add File button inside left corner -->
-                        <button type="button" id="uploadBtn" class="chat-plus-btn" onclick="document.getElementById('assistantFileInput').click()" aria-label="Add File" title="Attach medicine image, packaging, or medical report (+)">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none; display: block;">
+                        <button type="button" id="uploadBtn" class="chat-plus-btn"
+                            onclick="document.getElementById('assistantFileInput').click()" aria-label="Add File"
+                            title="Attach medicine image, packaging, or medical report (+)">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"
+                                style="pointer-events: none; display: block;">
                                 <line x1="12" y1="5" x2="12" y2="19"></line>
                                 <line x1="5" y1="12" x2="19" y2="12"></line>
                             </svg>
@@ -288,7 +302,9 @@
                         </button>
                     </div>
 
-                    <button type="button" id="sendBtn" onclick="sendMessage()" style="padding: 12px 24px; background: #0e7490; color: white; border: none; border-radius: 24px; cursor: pointer; font-weight: 700; font-size: 15px; box-shadow: 0 2px 4px rgba(14,116,144,0.3); display: flex; align-items: center; gap: 6px; flex-shrink: 0;">Send ➤</button>
+                    <button type="button" id="sendBtn" onclick="sendMessage()"
+                        style="padding: 12px 24px; background: #0e7490; color: white; border: none; border-radius: 24px; cursor: pointer; font-weight: 700; font-size: 15px; box-shadow: 0 2px 4px rgba(14,116,144,0.3); display: flex; align-items: center; gap: 6px; flex-shrink: 0;">Send
+                        ➤</button>
 
                 </div>
 
@@ -333,7 +349,7 @@
 
             if (file.type.startsWith("image/")) {
                 var reader = new FileReader();
-                reader.onload = function(evt) {
+                reader.onload = function (evt) {
                     selectedAssistantFileDataUrl = evt.target.result;
                 };
                 reader.readAsDataURL(file);
