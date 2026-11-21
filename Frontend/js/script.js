@@ -357,13 +357,37 @@ function cleanTextForSpeech(raw) {
     text = text.replace(/^\s*\d+\.\s+/gm, "");
     text = text.replace(/^-{3,}|^\*{3,}|^_{3,}/gm, "");
     text = text.replace(/<[^>]*>/g, " ");
+    // Strip emojis and high surrogates that crash or mute Windows SAPI voices
+    text = text.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, "");
+    text = text.replace(/[\u2600-\u27BF\uE000-\uF8FF]/g, "");
     text = text.replace(/\s+/g, " ").trim();
     return text;
 }
 
+function getBestVoice(targetLang) {
+    if (!("speechSynthesis" in window)) return null;
+    var voices = window.speechSynthesis.getVoices();
+    if (!voices || !voices.length) return null;
+
+    if (targetLang) {
+        var langLower = targetLang.toLowerCase();
+        var exact = voices.find(function (v) { return v.lang && v.lang.toLowerCase() === langLower; });
+        if (exact) return exact;
+
+        var prefix = langLower.split("-")[0];
+        var prefixMatch = voices.find(function (v) { return v.lang && v.lang.toLowerCase().startsWith(prefix); });
+        if (prefixMatch) return prefixMatch;
+    }
+
+    var enVoice = voices.find(function (v) { return v.lang && v.lang.toLowerCase().startsWith("en"); });
+    if (enVoice) return enVoice;
+
+    return voices[0] || null;
+}
+
 function stopSpeaking() {
     if ("speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
+        try { window.speechSynthesis.cancel(); } catch (e) { }
     }
     if (activeSpeakingBtn) {
         activeSpeakingBtn.classList.remove("speaking");
@@ -372,6 +396,7 @@ function stopSpeaking() {
         activeSpeakingBtn = null;
     }
     currentSpeechUtterance = null;
+    window._activeSpeechUtterance = null;
 }
 
 function toggleSpeech(btn) {
@@ -380,12 +405,16 @@ function toggleSpeech(btn) {
         return;
     }
 
-    if (activeSpeakingBtn === btn && window.speechSynthesis.speaking) {
+    if (activeSpeakingBtn === btn && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) {
         stopSpeaking();
         return;
     }
 
     stopSpeaking();
+
+    if (window.speechSynthesis.paused) {
+        try { window.speechSynthesis.resume(); } catch (e) { }
+    }
 
     var textToSpeak = btn.dataset.speechText;
     if (!textToSpeak) {
@@ -400,9 +429,19 @@ function toggleSpeech(btn) {
 
     if (!textToSpeak) return;
 
+    var bestVoice = getBestVoice("en-US");
+
     var utterance = new SpeechSynthesisUtterance(textToSpeak);
+    utterance.volume = 1.0;
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
+
+    if (bestVoice) {
+        utterance.voice = bestVoice;
+        utterance.lang = bestVoice.lang;
+    } else {
+        utterance.lang = "en-US";
+    }
 
     utterance.onstart = function () {
         activeSpeakingBtn = btn;
@@ -421,7 +460,18 @@ function toggleSpeech(btn) {
     };
 
     currentSpeechUtterance = utterance;
-    window.speechSynthesis.speak(utterance);
+    window._activeSpeechUtterance = utterance;
+
+    setTimeout(function () {
+        try {
+            if (window.speechSynthesis.paused) {
+                window.speechSynthesis.resume();
+            }
+            window.speechSynthesis.speak(utterance);
+        } catch (e) {
+            console.error("speechSynthesis.speak error:", e);
+        }
+    }, 60);
 }
 
 // ============================================================================

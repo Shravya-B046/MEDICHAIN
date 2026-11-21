@@ -590,6 +590,14 @@
         var currentSpeechUtterance = null;
         var activeSpeakingBtn = null;
 
+        // Preload voices as soon as speech engine is ready
+        if ("speechSynthesis" in window) {
+            window.speechSynthesis.onvoiceschanged = function () {
+                window.speechSynthesis.getVoices();
+            };
+            try { window.speechSynthesis.getVoices(); } catch (e) { }
+        }
+
         function cleanTextForSpeech(raw) {
             if (!raw) return "";
             var text = raw;
@@ -609,9 +617,36 @@
             text = text.replace(/^-{3,}|^\*{3,}|^_{3,}/gm, "");
             // Strip HTML tags if any
             text = text.replace(/<[^>]*>/g, " ");
+            // Strip high-surrogate emojis and symbols that crash or mute Windows SAPI voices
+            text = text.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, "");
+            text = text.replace(/[\u2600-\u27BF\uE000-\uF8FF]/g, "");
             // Normalize spaces
             text = text.replace(/\s+/g, " ").trim();
             return text;
+        }
+
+        function getBestVoice(targetLang) {
+            if (!("speechSynthesis" in window)) return null;
+            var voices = window.speechSynthesis.getVoices();
+            if (!voices || !voices.length) return null;
+
+            // 1. Try matching target language if requested (e.g. "en-IN")
+            if (targetLang) {
+                var langLower = targetLang.toLowerCase();
+                var exact = voices.find(function (v) { return v.lang && v.lang.toLowerCase() === langLower; });
+                if (exact) return exact;
+
+                var prefix = langLower.split("-")[0];
+                var prefixMatch = voices.find(function (v) { return v.lang && v.lang.toLowerCase().startsWith(prefix); });
+                if (prefixMatch) return prefixMatch;
+            }
+
+            // 2. Default to English voice (Microsoft David, Zira, Mark, Google US English)
+            var enVoice = voices.find(function (v) { return v.lang && v.lang.toLowerCase().startsWith("en"); });
+            if (enVoice) return enVoice;
+
+            // 3. Fallback to first available system voice
+            return voices[0] || null;
         }
 
         function stopSpeaking() {
@@ -635,12 +670,12 @@
             }
 
             // If this button is already speaking, clicking it stops the speech
-            if (activeSpeakingBtn === btn && window.speechSynthesis.speaking) {
+            if (activeSpeakingBtn === btn && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) {
                 stopSpeaking();
                 return;
             }
 
-            // Stop any ongoing speech
+            // Stop any ongoing speech first
             stopSpeaking();
 
             // Resume speech synthesis in case Chrome entered a paused/stuck state
@@ -662,14 +697,21 @@
 
             if (!textToSpeak) return;
 
+            // Pre-load voices if not yet cached
+            var activeConfig = languageConfig[currentLanguage] || languageConfig["en"];
+            var targetLang = (activeConfig && activeConfig.speechLang) ? activeConfig.speechLang : "en-US";
+            var bestVoice = getBestVoice(targetLang);
+
             var utterance = new SpeechSynthesisUtterance(textToSpeak);
-            utterance.rate = 1.0;
+            utterance.volume = 1.0; // Force 100% full volume
+            utterance.rate = 1.0;   // Normal natural speed
             utterance.pitch = 1.0;
 
-            // Set speech language based on active language
-            var activeConfig = languageConfig[currentLanguage] || languageConfig["en"];
-            if (activeConfig && activeConfig.speechLang) {
-                utterance.lang = activeConfig.speechLang;
+            if (bestVoice) {
+                utterance.voice = bestVoice;
+                utterance.lang = bestVoice.lang;
+            } else {
+                utterance.lang = "en-US";
             }
 
             utterance.onstart = function () {
@@ -691,7 +733,18 @@
             // Prevent Chrome garbage collector bug by anchoring to window
             currentSpeechUtterance = utterance;
             window._activeSpeechUtterance = utterance;
-            window.speechSynthesis.speak(utterance);
+
+            // Crucial Chrome fix: 60ms delay prevents cancel() from killing the new speak()
+            setTimeout(function () {
+                try {
+                    if (window.speechSynthesis.paused) {
+                        window.speechSynthesis.resume();
+                    }
+                    window.speechSynthesis.speak(utterance);
+                } catch (e) {
+                    console.error("speechSynthesis.speak error:", e);
+                }
+            }, 60);
         }
 
         function toggleLangMenu() {
