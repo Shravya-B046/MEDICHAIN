@@ -989,47 +989,89 @@ class AIService:
 
     def is_medical_document(self, filename: str, extracted_text: str = "") -> bool:
         """
-        Validates whether the uploaded file is a genuine clinical, medical, or diagnostic report.
-        Rejects non-medical documents (invoices, academic assignments, general text, code, resumes, setup guides, etc.).
+        Strictly validates whether the uploaded file is a genuine clinical, medical, or diagnostic report.
+        Rejects non-medical documents (invoices, receipts, commercial bills, academic assignments, general text,
+        source code, resumes, CVs, setup guides, travel tickets, IDs, legal documents, etc.).
         """
         f_lower = filename.lower()
         text_lower = extracted_text.lower() if extracted_text else ""
+        combined_text = f"{f_lower} {text_lower}"
 
-        # 1. Genuine medical test and clinical markers (strong positive signal)
-        lab_pattern = re.compile(
-            r"\b(hemoglobin|hgb|wbc|rbc|platelets?|glucose|blood sugar|cholesterol|creatinine|"
-            r"vitamin\s+[a-z0-9]+|blood pressure|\bbp\b|bilirubin|urea|bun|sodium|potassium|calcium|"
-            r"sgot|sgpt|alt|ast|lipid|thyroid|tsh|ecg|ekg|mri|ct scan|x-?ray|ultrasound|urine|serum|"
-            r"hba1c|pathology|biopsy|radiology|hematology|patient name|patient id|doctor name|physician|"
-            r"health checkup|medical report|clinical findings|reference range|fasting blood|diagnostic)\b",
+        # 1. NON-HEALTH DISQUALIFIERS (High priority negative filtering)
+        # Financial, commercial, academic, coding, resume, or administrative indicators
+        non_health_patterns = [
+            r"\b(tax\s+invoice|bill\s+of\s+supply|invoice\s*no|invoice\s*#|invoice\s+date|gstin|cgst|sgst|igst|vat\b|sales\s+tax)\b",
+            r"\b(subtotal|grand\s+total|total\s+due|amount\s+due|balance\s+due|payment\s+due|billing\s+address|shipping\s+address)\b",
+            r"\b(payment\s+mode|receipt\s+voucher|cash\s+receipt|credit\s+note|debit\s+note|bank\s+account|bank\s+statement|salary\s+slip|payslip)\b",
+            r"\b(curriculum\s+vitae|\bresume\b|work\s+experience|employment\s+history|educational\s+qualifications?|linkedin\.com/in|github\.com/)\b",
+            r"\b(homework\s+assignment|course\s+syllabus|lecture\s+notes|semester\s+exam|question\s+paper|dissertation|thesis\b)\b",
+            r"\b(source\s+code|syntax\s+error|pip\s+install|npm\s+install|requirements\.txt|dockerfile|docker-compose|git\s+commit)\b",
+            r"\b(rental\s+agreement|lease\s+agreement|tenancy\s+agreement|boarding\s+pass|flight\s+ticket|train\s+ticket|bus\s+ticket)\b",
+            r"\b(aadhaar\s+card|pan\s+card|voter\s+id|driving\s+licen[sc]e|passport\s+no)\b",
+        ]
+        has_non_health_cues = any(re.search(pat, combined_text, re.IGNORECASE) for pat in non_health_patterns)
+
+        # 2. GENUINE LABORATORY TEST & CLINICAL METRICS (strong positive diagnostic evidence)
+        lab_markers_pattern = re.compile(
+            r"\b(hemoglobin|hgb|wbc|white\s+blood|rbc|red\s+blood|platelets?|blood\s+glucose|fasting\s+sugar|fasting\s+glucose|"
+            r"postprandial|ppbs|hba1c|cholesterol|triglycerides?|hdl|ldl|vldl|creatinine|blood\s+urea|\bbun\b|uric\s+acid|"
+            r"bilirubin|sgot|sgpt|\balt\b|\bast\b|alkaline\s+phosphatase|\btsh\b|thyroid|vitamin\s+d|vitamin\s+b12|calcium|"
+            r"potassium|sodium|urine\s+routine|pus\s+cells|complete\s+blood\s+count|\bcbc\b|lipid\s+profile|liver\s+function|\blft\b|"
+            r"kidney\s+function|\bkft\b|renal\s+function|thyroid\s+profile)\b",
             re.IGNORECASE
         )
-        has_lab_markers = bool(lab_pattern.search(text_lower)) or bool(lab_pattern.search(f_lower))
+        lab_marker_matches = set(lab_markers_pattern.findall(combined_text))
 
-        # Clinical contextual keywords
-        clinical_keywords = [
-            "patient", "doctor", "physician", "hospital", "clinic", "diagnosis",
-            "prescription", "medical", "health checkup", "reference range", "clinical",
-            "laboratory", "pathology", "diagnostic", "blood test", "specimen", "observations"
-        ]
-        match_count = sum(1 for kw in clinical_keywords if kw in text_lower or kw in f_lower)
+        # Diagnostic imaging & clinical procedures
+        imaging_pattern = re.compile(
+            r"\b(chest\s+x-?ray|x-?ray|ultrasound|\busg\b|ct\s+scan|computed\s+tomography|\bmri\b|magnetic\s+resonance|"
+            r"\becg\b|\bekg\b|electrocardiogram|2d\s+echo|sonography|radiology\s+report|pathology\s+report|biopsy)\b",
+            re.IGNORECASE
+        )
+        imaging_matches = set(imaging_pattern.findall(combined_text))
 
-        # If it has strong medical markers or multiple clinical keywords, it is a valid medical report!
-        if has_lab_markers or match_count >= 2:
-            return True
+        # Clinical units of measurement typically found in lab reports
+        units_pattern = re.compile(
+            r"\b(mg/dl|g/dl|ng/ml|pg/ml|µl|cells/µl|cells/cumm|cells/hpf|mmol/l|meq/l|iu/l|u/l|reference\s+range|reference\s+interval|normal\s+range)\b",
+            re.IGNORECASE
+        )
+        has_clinical_units = bool(units_pattern.search(text_lower))
 
-        # 2. Non-medical disqualifiers (checked only for documents lacking strong medical parameters)
-        non_medical_cues = [
-            "setup guide", "onboarding", "run guide", "github repository", "git repository", "database_url",
-            "postgresql", "sqlite", "pip install", "uvicorn", "fastapi", "dockerfile",
-            "docker container", "tax invoice", "bill to", "shipping receipt", "purchase order",
-            "pan card", "aadhaar card", "curriculum vitae", "homework assignment", "course syllabus",
-            "source code", "programming language", "developer guide"
-        ]
-        if any(nm in text_lower or nm in f_lower for nm in non_medical_cues):
+        # Doctor prescription markers
+        rx_pattern = re.compile(
+            r"\b(rx\b|prescription|doctor's\s+prescription|clinical\s+diagnosis|chief\s+complaints|discharge\s+summary)\b",
+            re.IGNORECASE
+        )
+        has_rx_markers = bool(rx_pattern.search(combined_text))
+
+        # If non-health cues are present (e.g. invoice, resume, bill), reject unless there is overwhelming diagnostic evidence (e.g. >= 3 lab markers AND units)
+        if has_non_health_cues:
+            if not (len(lab_marker_matches) >= 3 and has_clinical_units):
+                return False
+
+        # If extracted text is present:
+        if extracted_text and len(extracted_text.strip()) > 30:
+            # Must possess:
+            # a) At least 1 recognized lab test marker WITH clinical units/reference intervals, OR
+            # b) At least 2 distinct lab markers, OR
+            # c) Diagnostic imaging procedure, OR
+            # d) Doctor prescription / clinical diagnosis markers
+            if (len(lab_marker_matches) >= 1 and has_clinical_units) or len(lab_marker_matches) >= 2 or imaging_matches or has_rx_markers:
+                return True
             return False
 
-        return match_count >= 1
+        # If text is empty or very short (e.g. scanned image / non-OCR PDF):
+        # We ONLY accept if the filename itself clearly specifies a medical diagnostic test!
+        clean_filename = re.sub(r"[_\-.]", " ", f_lower)
+        medical_filename_pattern = re.compile(
+            r"\b(blood\s*test|cbc|lipid|liver|kidney|thyroid|mri|xray|x\s*ray|ct\s*scan|ultrasound|ecg|ekg|pathology|prescription|health\s*report|medical\s*report|doctor\s*prescription|lab\s*report)\b",
+            re.IGNORECASE
+        )
+        if medical_filename_pattern.search(clean_filename):
+            return True
+
+        # Any other document (invoices, random photos, resumes, generic notes, screenshot) without medical text is REJECTED
+        return False
 
     def _build_fast_clinical_analysis(
         self,

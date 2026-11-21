@@ -117,6 +117,17 @@
                 }
                 return;
             }
+            var nonHealthKeywords = [
+                "invoice", "receipt", "bill", "salary", "payslip", "tax", "gst", "resume", "cv",
+                "assignment", "homework", "syllabus", "rental", "lease", "ticket", "boarding",
+                "aadhaar", "pan_card", "passport"
+            ];
+            var fNameLower = file.name.toLowerCase();
+            var isObviousNonHealth = nonHealthKeywords.some(function (k) { return fNameLower.indexOf(k) !== -1; });
+            if (isObviousNonHealth && fileMessage) {
+                fileMessage.innerHTML = "<span style='color: #c2410c;'>⚠️ <strong>Notice:</strong> I am only scanning reports related to health. Non-health files will not be processed.</span>";
+                return;
+            }
             if (fileMessage) {
                 fileMessage.innerHTML = "<span style='color: #0369a1;'>📄 Ready to analyze: <strong>" + escapeHtml(file.name) + "</strong> (" + (file.size / 1024).toFixed(1) + " KB)</span>";
             }
@@ -143,6 +154,42 @@
                 if (fileMessage) {
                     fileMessage.innerHTML = "<span style='color: #b91c1c; font-weight: bold;'>⚠️ Unsupported file format '." + escapeHtml(ext) + "'. Please choose PDF, PNG, or JPG.</span>";
                 }
+                return;
+            }
+
+            // Immediate Non-Health Check by filename
+            var nonHealthKeywords = [
+                "invoice", "receipt", "bill", "salary", "payslip", "tax", "gst", "resume", "cv",
+                "assignment", "homework", "syllabus", "rental", "lease", "ticket", "boarding",
+                "aadhaar", "pan_card", "passport"
+            ];
+            var fNameLower = file.name.toLowerCase();
+            var isObviousNonHealth = nonHealthKeywords.some(function (k) { return fNameLower.indexOf(k) !== -1; });
+            if (isObviousNonHealth) {
+                analysisResult.innerHTML = `
+            <div style="background: #fff7ed; border-left: 5px solid #ea580c; padding: 22px; border-radius: 8px; color: #9a4612;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                    <span style="font-size: 24px;">🚫</span>
+                    <h3 style="margin: 0; color: #c2410c; font-size: 19px;">I am only scanning reports related to health</h3>
+                </div>
+                <p style="font-size: 15px; margin: 10px 0 14px 0; line-height: 1.5; color: #7c2d12;">
+                    The selected document (<strong>${escapeHtml(file.name)}</strong>) is not recognized as a health or medical report. <strong>I am only scanning reports related to health.</strong>
+                </p>
+                <div style="background: #ffedd5; padding: 12px 16px; border-radius: 6px; font-size: 13px; color: #9a4612;">
+                    <strong>Please upload a report related to health, such as:</strong>
+                    <ul style="margin: 6px 0 0 18px; padding-left: 0;">
+                        <li>Pathology & Blood Tests (CBC, Glucose, Lipid Panel, Thyroid, etc.)</li>
+                        <li>Doctor Prescriptions & Hospital Discharge Notes</li>
+                        <li>Diagnostic Scans (X-Ray, Ultrasound, MRI, CT)</li>
+                        <li>Official Clinical Health Checkup Records</li>
+                    </ul>
+                </div>
+            </div>
+        `;
+                if (fileMessage) {
+                    fileMessage.innerHTML = "<span style='color: #b91c1c; font-weight: bold;'>🚫 Rejected: I am only scanning reports related to health.</span>";
+                }
+                analysisResult.scrollIntoView({ behavior: "smooth", block: "nearest" });
                 return;
             }
 
