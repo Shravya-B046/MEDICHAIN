@@ -8,11 +8,21 @@
     <link rel="stylesheet" href="css/style.css?v=10.0">
 
     <script>
-        // Auth Guard: Require login before accessing dashboard
+        // Auth Guard: Auto-set demo session on localhost for seamless access
         (function () {
             var auth = localStorage.getItem("medichain_auth") || sessionStorage.getItem("medichain_auth");
             if (!auth) {
-                window.location.replace("login.html");
+                if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+                    sessionStorage.setItem("medichain_auth", JSON.stringify({
+                        email: "patient@medichain.org",
+                        role: "Patient",
+                        portal: "Patient Portal",
+                        roleKey: "patient",
+                        loginTime: new Date().toISOString()
+                    }));
+                } else {
+                    window.location.replace("login.html");
+                }
             }
         })();
     </script>

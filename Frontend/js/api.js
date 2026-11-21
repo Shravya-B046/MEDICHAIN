@@ -117,6 +117,19 @@
             });
         },
 
+        uploadAssistantFile: function(file, message, history, context, language) {
+            var fd = new FormData();
+            fd.append("file", file);
+            if (message) fd.append("message", message);
+            if (history) fd.append("history", typeof history === "string" ? history : JSON.stringify(history));
+            if (context) fd.append("context", context);
+            if (language) fd.append("language", language);
+            return this.request("/api/assistant/upload", {
+                method: "POST",
+                body: fd
+            });
+        },
+
         // Module 2: Hospital Resources
         getResources: function() {
             return this.request("/api/resources");

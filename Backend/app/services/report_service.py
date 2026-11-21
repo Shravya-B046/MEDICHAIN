@@ -41,7 +41,7 @@ def validate_upload(file: UploadFile) -> Tuple[str, str]:
 
 def extract_pdf_data(pdf_path: Path) -> Tuple[str, List[str]]:
     """
-    Extracts text from a PDF file using pypdf and identifies structured clinical findings with values.
+    Extracts text from a PDF file using pypdf and identifies clinical findings.
     Returns: (full_extracted_text, list_of_detected_findings)
     """
     extracted_text = ""
@@ -59,6 +59,8 @@ def extract_pdf_data(pdf_path: Path) -> Tuple[str, List[str]]:
         extracted_text = "\n".join(page_texts).strip()
 
         if extracted_text:
+            # Look for lines containing lab parameters, numerical values, or reference ranges
+            # Common medical lab metrics
             markers = [
                 r"hemoglobin|hgb",
                 r"wbc|white blood cell",
@@ -67,7 +69,6 @@ def extract_pdf_data(pdf_path: Path) -> Tuple[str, List[str]]:
                 r"glucose|sugar",
                 r"cholesterol",
                 r"creatinine",
-                r"vitamin",
                 r"blood pressure|bp",
                 r"triglycerides",
                 r"bilirubin",
@@ -78,31 +79,19 @@ def extract_pdf_data(pdf_path: Path) -> Tuple[str, List[str]]:
             ]
             combined_pattern = re.compile("|".join(markers), re.IGNORECASE)
 
-            lines = [l.strip() for l in extracted_text.splitlines() if l.strip()]
-            for idx, line in enumerate(lines):
-                # Ignore generic section headers
-                if line.lower().startswith("wbc count") or "reference range" in line.lower() or "test results" in line.lower():
+            lines = extracted_text.splitlines()
+            for line in lines:
+                stripped = line.strip()
+                if not stripped:
                     continue
+                if combined_pattern.search(stripped):
+                    # Clean up multiple whitespaces
+                    clean_line = re.sub(r"\s+", " ", stripped)
+                    if len(clean_line) <= 120 and clean_line not in findings:
+                        findings.append(clean_line)
 
-                if combined_pattern.search(line):
-                    combined_entry = line
-                    # Look ahead for value and reference range in multi-line tabular text
-                    if idx + 1 < len(lines) and re.search(r"\d", lines[idx + 1]):
-                        val_line = lines[idx + 1]
-                        ref_line = ""
-                        if idx + 2 < len(lines) and ("–" in lines[idx + 2] or "-" in lines[idx + 2] or "below" in lines[idx + 2].lower() or "above" in lines[idx + 2].lower()):
-                            ref_line = lines[idx + 2]
-                        
-                        if ref_line:
-                            combined_entry = f"{line}: {val_line} (Normal: {ref_line})"
-                        else:
-                            combined_entry = f"{line}: {val_line}"
-
-                    if combined_entry not in findings:
-                        findings.append(combined_entry)
-
-            # Cap at top 10 relevant lab parameters
-            findings = findings[:10]
+            # Limit to top 8 findings for clear presentation
+            findings = findings[:8]
 
     except Exception as e:
         logger.warning(f"pypdf extraction error on {pdf_path}: {e}")
@@ -142,6 +131,14 @@ async def process_report_upload(file: UploadFile, db: Session) -> ReportAnalysis
         file_size_kb = round(total_bytes / 1024, 2)
         content_type = file.content_type or f"application/{ext}"
 
+        # Validate that uploaded document is healthcare-related
+        is_healthcare, reason = ai_service.validate_document_healthcare_domain(temp_path, filename, ext)
+        if not is_healthcare:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=reason,
+            )
+
         extracted_text = ""
         findings = []
         if ext == "pdf":
@@ -171,13 +168,12 @@ async def process_report_upload(file: UploadFile, db: Session) -> ReportAnalysis
             filename=filename,
             file_size_kb=file_size_kb,
             content_type=content_type,
-            status=analysis_data.get("status", "Completed"),
-            is_medical=analysis_data.get("is_medical", True),
+            status="Completed",
             summary_title=analysis_data["summary_title"],
             key_observations=analysis_data["key_observations"],
             extracted_findings=analysis_data.get("extracted_findings", []),
             extraction_method=analysis_data.get("extraction_method", "pypdf_parser"),
-            suggested_questions_for_doctor=analysis_data.get("suggested_questions_for_doctor", []),
+            suggested_questions_for_doctor=analysis_data["suggested_questions_for_doctor"],
             temporary_file_cleaned=True,
         )
 
