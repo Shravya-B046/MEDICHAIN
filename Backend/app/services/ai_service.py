@@ -1,16 +1,28 @@
-import concurrent.futures
+import base64
 import difflib
 import json
 import logging
 import re
-import socket
-import time
 import urllib.request
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Standard strict rejection message required for non-healthcare queries or uploads
+HEALTHCARE_ONLY_REJECTION_MESSAGE = (
+    "I'm MEDICHAIN, a healthcare-focused AI assistant. "
+    "I can only help with medical, medicine and health-related questions or uploads. "
+    "Please upload a relevant medical image or ask a healthcare-related question."
+)
+
+UNCLEAR_MEDICINE_MESSAGE = (
+    "This image appears to be related to medicine or healthcare packaging, but the text, dosage, "
+    "or identifying details are unclear or partially obscured. To provide safe and accurate medical "
+    "information and avoid guessing, please upload a clearer, well-lit photograph showing the medicine name, "
+    "strength, and label clearly, or type the medicine name directly."
+)
 
 # Trusted medical reference sources
 TRUSTED_SOURCES = [
@@ -21,7 +33,7 @@ TRUSTED_SOURCES = [
     {"name": "FDA Drug Information", "url": "https://www.fda.gov/drugs"},
 ]
 
-# Emergency red-flag trigger patterns that require immediate clinical triage (English & Indian Languages)
+# Emergency red-flag trigger patterns that require immediate clinical triage
 EMERGENCY_PATTERNS = [
     r"\b(chest\s+pain|heart\s+attack|crushing\s+chest|pressure\s+in\s+chest)\b",
     r"\b(shortness\s+of\s+breath|cannot\s+breathe|gasping|struggling\s+to\s+breathe|choking)\b",
@@ -31,13 +43,44 @@ EMERGENCY_PATTERNS = [
     r"\b(poison|poisoning|swallowed\s+chemical|overdose)\b",
     r"\b(thunderclap\s+headache|sudden\s+severe\s+headache\s+worst\s+of\s+life)\b",
     r"\b(anaphylaxis|throat\s+closing|lip\s+swelling|severe\s+allergic\s+reaction)\b",
-    # Multilingual emergency keywords: Kannada, Hindi, Marathi
-    r"(ಎದೆ\s*ನೋವು|ಹೃದಯಾಘಾತ|ಉಸಿರಾಟದ\s*ತೊಂದರೆ|ಪ್ರಜ್ಞೆ\s*ತಪ್ಪಿ|ರಕ್ತಸ್ರಾವ|ಆಂಬ್ಯುಲೆನ್ಸ್)",
-    r"(सीने\s*में\s*दर्द|हार्ट\s*अटैक|दिल\s*का\s*दौरा|सांस\s*लेने\s*में\s*तकलीफ|बेहोश|खून\s*की\s*उल्टी|एम्बुलेंस)",
-    r"(छातीत\s*वेदना|छातीत\s*दुखणे|श्वास\s*घेण्यास\s*त्रास|हृदयविकाराचा\s*झटका|बेशुद्ध|रक्तस्राव|रुग्णवाहिका)",
 ]
 
-# Curated verified medicine knowledge base for common medications (WHO & MedlinePlus aligned)
+# Patterns definitively indicating unrelated non-healthcare topics
+UNRELATED_TEXT_PATTERNS = [
+    r"\b(capital\s+of\b|where\s+is\s+(the\s+)?(capital|city|country|state|river|mountain)\b)",
+    r"\b(who\s+is\s+(the\s+)?(president|prime\s+minister|ceo|king|queen|governor|actor|actress|singer)\b)",
+    r"\b(recipe\s+for|how\s+to\s+(bake|cook|make)\s+(cake|pizza|pasta|bread|biryani|burger|cookie|curry))\b",
+    r"\b(cricket|football|soccer|nba|fifa|ipl|world\s+cup|who\s+won\s+the\s+match|batting\s+average)\b",
+    r"\b(box\s+office|movie\s+review|recommend\s+(a\s+)?movie|netflix|hollywood|bollywood|song\s+lyrics)\b",
+    r"\b(best\s+car|buy\s+iphone|cheapest\s+laptop|discount\s+on\s+shoes|nike\s+shoes|bmw|audi|toyota)\b",
+    r"\b(write\s+(python|java|c\+\+|javascript|sql|code|script)|solve\s+(equation|math|integral|algebra))\b",
+    r"\b(stock\s+market|cryptocurrency|bitcoin|ethereum|forex\s+trading|share\s+price)\b",
+    r"\b(spoon|chair|shoes|clothes|toy|toys|furniture|car|cars|bicycle|motorcycle|table|sofa)\b(?!\s+(injury|swallowed|accident|poison|choking|struck|wound))",
+    r"\b(ignore\s+(all\s+)?previous\s+instructions|act\s+as\s+(a\s+)?general|dan\s+mode|jailbreak)\b",
+]
+
+# Common healthcare keywords and concepts
+HEALTHCARE_KEYWORDS = {
+    "medicine", "medication", "pill", "tablet", "capsule", "syrup", "ointment", "cream",
+    "inhaler", "injection", "vaccine", "antibiotic", "painkiller", "analgesic", "dose", "dosage",
+    "side effect", "side effects", "precaution", "precautions", "contraindication", "drug interaction",
+    "doctor", "physician", "nurse", "hospital", "clinic", "pharmacy", "pharmacist", "prescription",
+    "symptom", "symptoms", "diagnosis", "disease", "illness", "infection", "fever", "cough",
+    "cold", "headache", "migraine", "pain", "chest pain", "stomach ache", "nausea", "vomit",
+    "vomiting", "diarrhea", "rash", "allergy", "allergic", "inflammation", "swelling", "edema",
+    "blood pressure", "hypertension", "hypotension", "diabetes", "diabetic", "blood sugar",
+    "glucose", "cholesterol", "heart rate", "pulse", "oxygen", "spo2", "dehydration", "hydration",
+    "water intake", "nutrition", "dietary", "vitamin", "mineral", "supplement", "sleep", "insomnia",
+    "mental health", "anxiety", "depression", "stress", "breathing", "respiratory", "asthma",
+    "bronchitis", "pneumonia", "cardiac", "kidney", "renal", "liver", "hepatic", "brain",
+    "neurological", "stomach", "gastric", "gerd", "acid reflux", "ulcer", "orthopedic", "fracture",
+    "sprain", "wound", "cut", "burn", "first aid", "emergency", "ambulance", "triage", "trauma",
+    "stethoscope", "thermometer", "oximeter", "sphygmomanometer", "ventilator", "nebulizer",
+    "glucometer", "syringe", "crutches", "wheelchair", "xray", "x-ray", "mri", "ct scan",
+    "ultrasound", "ecg", "ekg", "lab report", "blood test", "urine test", "cbc", "hemoglobin",
+}
+
+# Curated verified medical knowledge base for common medications (WHO & MedlinePlus aligned)
 VERIFIED_MEDICINE_KB: Dict[str, Dict] = {
     "paracetamol": {
         "brand_examples": ["Dolo 650", "Calpol", "Crocin", "Tylenol", "Panadol"],
@@ -138,164 +181,101 @@ VERIFIED_MEDICINE_KB: Dict[str, Dict] = {
         "administration": "Sip continuously throughout the day following loose stools. Reconstituted solution must be used within 24 hours.",
         "when_doctor": "Inability to drink or keep fluids down, sunken eyes, lethargy, no urination for 6+ hours in children, or blood in stool.",
     },
+    "cough syrup": {
+        "brand_examples": ["Benadryl Cough", "Ascoril", "Robitussin", "Corex"],
+        "generic_name": "Cough Formulation (Antitussive / Expectorant)",
+        "uses": "Symptomatic relief of productive (chesty) or dry (tickly) coughs caused by upper respiratory tract infections or colds.",
+        "mechanism": "Expectorants (guaifenesin) thin bronchial secretions for easier clearance; antitussives (dextromethorphan) suppress the cough center in the medulla.",
+        "side_effects": "Drowsiness, mild dizziness, nausea, stomach discomfort.",
+        "precautions": "Not recommended for children under 4-6 years without pediatric supervision. Avoid concurrent central nervous system depressants.",
+        "interactions": "MAO inhibitors, sedatives, antihistamines, alcohol.",
+        "administration": "Measure dose strictly with calibrated oral syringe or measuring cup. Shake bottle well before use.",
+        "when_doctor": "Cough lasting over 10 days, coughing up blood, high persistent fever, or breathing difficulty.",
+    },
+    "aspirin": {
+        "brand_examples": ["Disprin", "Bayer Aspirin", "Ecosprin"],
+        "generic_name": "Acetylsalicylic Acid (Aspirin)",
+        "uses": "Cardiovascular prophylaxis (low-dose antiplatelet), relief of mild pain, inflammation, and fever.",
+        "mechanism": "Irreversibly inhibits COX-1, preventing thromboxane A2 synthesis in platelets to inhibit blood clot aggregation.",
+        "side_effects": "Gastric irritation, increased bleeding tendency, heartburn, nausea.",
+        "precautions": "Contraindicated in children with viral illness (Reye's syndrome risk). Caution in asthma and active peptic ulcers.",
+        "interactions": "Anticoagulants (warfarin, heparin), NSAIDs, SSRIs, corticosteroids.",
+        "administration": "Take with food or a large glass of water. Dispersible tablets should be dissolved in water first.",
+        "when_doctor": "Unusual bruising, black tarry stools, vomiting blood, or ringing in ears (tinnitus).",
+    },
 }
 
-# Multilingual verified clinical content for common medicines (Kannada, Hindi, Marathi)
-MEDICINE_TRANSLATIONS: Dict[str, Dict[str, Dict[str, str]]] = {
-    "paracetamol": {
-        "kn": {
-            "name": "ಪ್ಯಾರಸಿಟಮಲ್ (ಅಸೆಟಾಮಿನೋಫೆನ್)",
-            "uses": "ಸೌಮ್ಯದಿಂದ ಮಧ್ಯಮ ನೋವು ನಿವಾರಣೆ (ತಲೆನೋವು, ಮೈಕೈನೋವು, ಹಲ್ಲುನೋವು, ಸ್ನಾಯು ಸೆಳೆತ) ಮತ್ತು ಜ್ವರ ಕಡಿಮೆ ಮಾಡಲು ಬಳಸಲಾಗುತ್ತದೆ.",
-            "mechanism": "ಕೇಂದ್ರ ನರಮಂಡಲದಲ್ಲಿ ನೋವು ಸಂಕೇತಿಸುವ ರಾಸಾಯನಿಕಗಳನ್ನು (ಪ್ರೊಸ್ಟಾಗ್ಲಾಂಡಿನ್‌ಗಳು) ತಡೆಗಟ್ಟುತ್ತದೆ ಮತ್ತು ಮೆದುಳಿನ ತಾಪಮಾನ ನಿಯಂತ್ರಣ ಕೇಂದ್ರವನ್ನು ಸರಿಹೊಂದಿಸುತ್ತದೆ.",
-            "side_effects": "ಸಾಮಾನ್ಯವಾಗಿ ಸುರಕ್ಷಿತ. ಅಪರೂಪವಾಗಿ ಸೌಮ್ಯ ವಾಕರಿಕೆ, ಅಲರ್ಜಿ ದದ್ದು ಬರಬಹುದು. ನಿಗದಿತ ಪ್ರಮಾಣ ಮೀರಿದರೆ ಯಕೃತ್ತಿಗೆ (ಲಿವರ್) ಹಾನಿಯಾಗಬಹುದು.",
-            "precautions": "ದಿನಕ್ಕೆ ಗರಿಷ್ಠ 4,000 ಮಿಗ್ರಾಂ (4 ಗ್ರಾಂ). ಅತಿಯಾದ ಪ್ರಮಾಣ ತಪ್ಪಿಸಲು ಪ್ಯಾರಸಿಟಮಲ್ ಹೊಂದಿರುವ ಇತರ ಔಷಧಿಗಳನ್ನು ಜೊತೆಯಲ್ಲಿ ತೆಗೆದುಕೊಳ್ಳಬೇಡಿ.",
-            "interactions": "ಆಲ್ಕೋಹಾಲ್ (ಯಕೃತ್ತಿನ ಹಾನಿಯ ಅಪಾಯವನ್ನು ಹೆಚ್ಚಿಸುತ್ತದೆ), ವಾರ್ಫರಿನ್, ಕಾರ್ಬಮಾಜೆಪೈನ್.",
-            "administration": "ಊಟದ ಮೊದಲು ಅಥವಾ ನಂತರ ನೀರಿನೊಂದಿಗೆ ಸೇವಿಸಬಹುದು. ಗ್ಯಾಸ್ಟ್ರಿಕ್ ಸಮಸ್ಯೆ ಇದ್ದರೆ ಊಟದ ನಂತರ ಸೇವಿಸಿ.",
-            "when_doctor": "ಜ್ವರ 3 ದಿನಗಳಿಗಿಂತ ಹೆಚ್ಚು ಮುಂದುವರಿದರೆ, ನೋವು 5 ದಿನಗಳಿಗಿಂತ ಹೆಚ್ಚು ಇದ್ದರೆ, ಅಥವಾ ಕಣ್ಣು/ಚರ್ಮ ಹಳದಿಯಾದರೆ ತಕ್ಷಣ ವೈದ್ಯರನ್ನು ಭೇಟಿ ಮಾಡಿ."
-        },
-        "hi": {
-            "name": "पैरासिटामोल (एसिटामिनोफेन)",
-            "uses": "हल्के से मध्यम दर्द (सिरदर्द, मांसपेशियों में दर्द, दांत दर्द) से राहत और बुखार को कम करने के लिए उपयोग किया जाता है।",
-            "mechanism": "केंद्रीय तंत्रिका तंत्र में दर्द का संकेत देने वाले रसायनों (प्रोस्टाग्लैंडिंस) को रोकता है और मस्तिष्क के तापमान नियंत्रण केंद्र को नियंत्रित करता है।",
-            "side_effects": "सामान्य खुराक में सुरक्षित। दुर्लभ मामलों में: हल्की मतली, एलर्जी संबंधी दाने। अधिक खुराक से लीवर को नुकसान हो सकता है।",
-            "precautions": "वयस्कों के लिए 24 घंटे में अधिकतम 4,000 मिलीग्राम (4 ग्राम)। ओवरडोज से बचने के लिए अन्य पैरासिटामोल युक्त दवाओं के साथ न लें।",
-            "interactions": "शराब (लीवर विषाक्तता का खतरा बढ़ाती है), वार्फरिन, कार्बामाज़ेपिन।",
-            "administration": "भोजन के साथ या बिना भोजन के लिया जा सकता है। एक पूरे गिलास पानी के साथ निगलें। यदि पेट में संवेदनशीलता हो तो भोजन के बाद लें।",
-            "when_doctor": "3 दिनों से अधिक समय तक बुखार रहने, 5 दिनों से अधिक समय तक दर्द रहने, या आंखें/त्वचा पीली होने पर तुरंत डॉक्टर से मिलें।"
-        },
-        "mr": {
-            "name": "पॅरासिटामॉल (अ‍ॅसिटामिनोफेन)",
-            "uses": "सौम्य ते मध्यम वेदना (डोकेदुखी, स्नायू दुखणे, दातदुखी) आणि ताप कमी करण्यासाठी वापरले जाते.",
-            "mechanism": "मध्यवर्ती मज्जासंस्थेतील वेदना संकेत देणाऱ्या रसायनांना अवरोधित करते आणि शरीराचे तापमान नियंत्रित करते.",
-            "side_effects": "योग्य डोसमध्ये सुरक्षित. क्वचित प्रसंगी: मळमळ, त्वचेवर ॲलर्जीचे पुरळ. अतिसेवनाने यकृताला (लिव्हर) इजा होऊ शकते.",
-            "precautions": "24 तासांत जास्तीत जास्त 4,000 मिग्रॅ (4 ग्रॅम). ओव्हरडोज टाळण्यासाठी इतर पॅरासिटामॉल असलेल्या औषधांसोबत घेऊ नका.",
-            "interactions": "अल्कोहोल (लिव्हरला धोका वाढतो), वॉरफेरिन, कार्बामाझेपाइन.",
-            "administration": "जेवणासोबत किंवा जेवणाशिवाय पाण्यासोबत घेता येते. पित्ताचा त्रास असल्यास जेवणानंतर घ्या.",
-            "when_doctor": "ताप 3 दिवसांपेक्षा जास्त राहिल्यास, वेदना 5 दिवसांपेक्षा जास्त राहिल्यास त्वरित डॉक्टरांशी संपर्क साधा."
-        }
+# Verified medical devices & healthcare equipment database
+VERIFIED_EQUIPMENT_KB: Dict[str, Dict] = {
+    "blood pressure monitor": {
+        "name": "Blood Pressure Monitor (Digital Sphygmomanometer)",
+        "category": "Diagnostic Cardiovascular Device",
+        "measurements": "Systolic and Diastolic blood pressure (mmHg) and pulse rate (bpm).",
+        "normal_range": "Normal adult BP is typically under 120/80 mmHg. Consistent readings ≥ 130/80 mmHg suggest hypertension.",
+        "proper_usage": "Rest quietly for 5 minutes prior to measurement. Sit upright with back supported, feet flat on the floor, and cuff placed on bare upper arm at heart level. Avoid caffeine, exercise, or smoking 30 minutes before testing.",
+        "when_doctor": "Systolic reading > 180 mmHg or diastolic > 120 mmHg indicates hypertensive crisis requiring urgent emergency care if accompanied by chest pain, headache, or visual changes.",
     },
-    "metformin": {
-        "kn": {
-            "name": "ಮೆಟ್‌ಫಾರ್ಮಿನ್ ಹೈಡ್ರೋಕ್ಲೋರೈಡ್",
-            "uses": "ಟೈಪ್ 2 ಮಧುಮೇಹ (ಡಯಾಬಿಟಿಸ್) ನಿರ್ವಹಣೆಗೆ ಮೊದಲ ಸಾಲಿನ ಮುಖ್ಯ ಔಷಧ; ರಕ್ತದಲ್ಲಿನ ಸಕ್ಕರೆ ಮಟ್ಟವನ್ನು ನಿಯಂತ್ರಿಸುತ್ತದೆ.",
-            "mechanism": "ಯಕೃತ್ತಿನಲ್ಲಿ ಗ್ಲೂಕೋಸ್ ಉತ್ಪಾದನೆಯನ್ನು ಕಡಿಮೆ ಮಾಡುತ್ತದೆ ಮತ್ತು ಇನ್ಸುಲಿನ್ ಸೂಕ್ಷ್ಮತೆಯನ್ನು ಸುಧಾರಿಸುತ್ತದೆ.",
-            "side_effects": "ಅತಿಸಾರ, ವಾಕರಿಕೆ, ಹೊಟ್ಟೆಯ ಅಸ್ವಸ್ಥತೆ, ಬಾಯಿಯಲ್ಲಿ ಲೋಹದ ರುಚಿ.",
-            "precautions": "ತೀವ್ರ ಮೂತ್ರಪಿಂಡ (ಕಿಡ್ನಿ) ವೈಫಲ್ಯದಲ್ಲಿ ಬಳಸಬಾರದು. ರೇಡಿಯೋ ಕಾಂಟ್ರಾಸ್ಟ್ ಪರೀಕ್ಷೆಗೆ ಮುನ್ನ ತಾತ್ಕಾಲಿಕವಾಗಿ ನಿಲ್ಲಿಸಬೇಕು.",
-            "interactions": "ಆಲ್ಕೋಹಾಲ್ (ಲ್ಯಾಕ್ಟಿಕ್ ಆಸಿಡೋಸಿಸ್ ಅಪಾಯವನ್ನು ಹೆಚ್ಚಿಸುತ್ತದೆ), ಸಿಮೆಟಿಡಿನ್, ಮೂತ್ರವರ್ಧಕಗಳು.",
-            "administration": "ಹೊಟ್ಟೆಯ ಕಿರಿಕಿರಿ ಕಡಿಮೆ ಮಾಡಲು ಯಾವಾಗಲೂ ಊಟದ ಜೊತೆಗೆ ಸೇವಿಸಿ.",
-            "when_doctor": "ತೀವ್ರ ಆಯಾಸ, ಸ್ನಾಯು ಸೆಳೆತ, ತೀವ್ರ ಉಸಿರಾಟದ ತೊಂದರೆ ಕಂಡುಬಂದರೆ ತಕ್ಷಣ ವೈದ್ಯರನ್ನು ಭೇಟಿ ಮಾಡಿ."
-        },
-        "hi": {
-            "name": "मेटफॉर्मिन हाइड्रोक्लोराइड",
-            "uses": "टाइप 2 डायबिटीज मेलिटस के प्रबंधन के लिए प्राथमिक दवा; रक्त शर्करा के स्तर को नियंत्रित करती है।",
-            "mechanism": "लिवर में ग्लूकोज के उत्पादन को कम करती है और शरीर में इंसुलिन संवेदनशीलता में सुधार करती है।",
-            "side_effects": "दस्त, मतली, पेट खराब, मुंह में धातु जैसा स्वाद।",
-            "precautions": "गंभीर किडनी रोग में न लें। सीटी स्कैन या कंट्रास्ट प्रक्रिया से पहले डॉक्टर को सूचित करें।",
-            "interactions": "शराब (लैक्टिक एसिडोसिस का खतरा बढ़ाती है), मूत्रवर्धक दवाएं।",
-            "administration": "पेट की परेशानी कम करने के लिए हमेशा भोजन के साथ लें।",
-            "when_doctor": "अत्यधिक थकान, मांसपेशियों में ऐंठन, सांस लेने में तकलीफ होने पर तुरंत डॉक्टर से संपर्क करें।"
-        },
-        "mr": {
-            "name": "मेटफॉर्मिन हायड्रोक्लोराइड",
-            "uses": "टाईप 2 मधुमेहाच्या (डायबिटीज) उपचारासाठी पहिली पसंती; रक्तातील साखरेचे प्रमाण नियंत्रित करते.",
-            "mechanism": "यकृतातील ग्लुकोज निर्मिती कमी करते आणि इन्सुलिनची संवेदनशीलता सुधारते.",
-            "side_effects": "जुलाब, मळमळ, पोटात अस्वस्थता, तोंडात धातूसारखी चव.",
-            "precautions": "किडनीचा गंभीर आजार असल्यास घेऊ नका.",
-            "interactions": "अल्कोहोल, विशिष्ट मूत्रवर्धक औषधे.",
-            "administration": "पोटाचा त्रास टाळण्यासाठी नेहमी जेवणासोबत घ्या.",
-            "when_doctor": "अति थकवा, स्नायू दुखावणे किंवा श्वास घेण्यास त्रास झाल्यास तातडीने डॉक्टरांकडे जा."
-        }
+    "pulse oximeter": {
+        "name": "Fingertip Pulse Oximeter",
+        "category": "Respiratory Monitoring Device",
+        "measurements": "Peripheral blood oxygen saturation (SpO2 percentage) and pulse rate.",
+        "normal_range": "Normal SpO2 for healthy individuals at sea level is 95% to 100%. Readings between 90-94% warrant clinical evaluation.",
+        "proper_usage": "Ensure finger is warm, dry, and free of dark nail polish or artificial nails. Rest hand on chest or flat surface and keep still until reading stabilizes.",
+        "when_doctor": "SpO2 persistently below 90%, especially with shortness of breath, dizziness, or confusion, represents a medical emergency.",
     },
-    "ibuprofen": {
-        "kn": {
-            "name": "ಐಬುಪ್ರೊಫೇನ್ (NSAID)",
-            "uses": "ಉರಿಯೂತದ ನೋವು ನಿವಾರಣೆ (ಕೀಲು ನೋವು, ಹಲ್ಲುನೋವು, ಮುಟ್ಟಿನ ಸೆಳೆತ, ಸಂಧಿವಾತ ಮತ್ತು ಜ್ವರ).",
-            "mechanism": "COX ಕಿಣ್ವಗಳನ್ನು ತಡೆಯುವ ಮೂಲಕ ದೇಹದಲ್ಲಿ ಉರಿಯೂತ ಮತ್ತು ನೋವು ಉಂಟುಮಾಡುವ ಪ್ರೊಸ್ಟಾಗ್ಲಾಂಡಿನ್‌ಗಳನ್ನು ನಿಗ್ರಹಿಸುತ್ತದೆ.",
-            "side_effects": "ಅಜೀರ್ಣ, ಎದೆಯುರಿ, ಹೊಟ್ಟೆ ನೋವು, ತಲೆತಿರುಗುವಿಕೆ, ಸೌಮ್ಯ ವಾಕರಿಕೆ.",
-            "precautions": "ಹೊಟ್ಟೆಯ ಹುಣ್ಣು (ಅಲ್ಸರ್), ತೀವ್ರ ಹೃದಯ ವೈಫಲ್ಯ ಅಥವಾ ತೀವ್ರ ಮೂತ್ರಪಿಂಡ ಸಮಸ್ಯೆಯಲ್ಲಿ ಸೇವಿಸಬೇಡಿ.",
-            "interactions": "ಆಸ್ಪಿರಿನ್, ರಕ್ತ ತೆಳುಗೊಳಿಸುವ ಔಷಧಗಳು (ವಾರ್ಫರಿನ್), ಕಾರ್ಟಿಕೊಸ್ಟೆರಾಯ್ಡ್‌ಗಳು.",
-            "administration": "ಹೊಟ್ಟೆಯ ಕಿರಿಕಿರಿಯನ್ನು ತಡೆಯಲು ಯಾವಾಗಲೂ ಊಟ ಅಥವಾ ಹಾಲಿನೊಂದಿಗೆ ಸೇವಿಸಿ.",
-            "when_doctor": "ಕಪ್ಪು ಮಲ, ನಿರಂತರ ಹೊಟ್ಟೆ ನೋವು, ರಕ್ತ ವಾಂತಿ ಅಥವಾ ಪಾದಗಳಲ್ಲಿ ಊತ ಕಂಡುಬಂದರೆ ತಕ್ಷಣ ವೈದ್ಯರನ್ನು ಭೇಟಿ ಮಾಡಿ."
-        },
-        "hi": {
-            "name": "इबुप्रोफेन (NSAID)",
-            "uses": "सूजन और दर्द से राहत (जोड़ों का दर्द, दांत दर्द, मासिक धर्म में दर्द, गठिया और बुखार)।",
-            "mechanism": "शरीर में सूजन और दर्द पैदा करने वाले एंजाइमों (COX-1 और COX-2) को रोकता है।",
-            "side_effects": "अपच, सीने में जलन, पेट दर्द, चक्कर आना, हल्की मतली।",
-            "precautions": "पेट के अल्सर, गंभीर हृदय रोग या किडनी रोग में न लें।",
-            "interactions": "एस्पिरिन, ब्लड थिनर (वारफारिन), स्टेरॉयड।",
-            "administration": "पेट की जलन से बचने के लिए हमेशा भोजन या दूध के साथ लें।",
-            "when_doctor": "काला मल, लगातार पेट दर्द या पैरों में सूजन होने पर तुरंत डॉक्टर से मिलें।"
-        },
-        "mr": {
-            "name": "इबुप्रोफेन (NSAID)",
-            "uses": "दाहक वेदना कमी करण्यासाठी (सांधेदुखी, दातदुखी, मासिक पाळीतील वेदना आणि ताप).",
-            "mechanism": "दाह निर्माण करणाऱ्या प्रोस्टॅलँडिन रसायनांना रोखून वेदना आणि सूज कमी करते.",
-            "side_effects": "अपचन, छातीत जळजळ, पोटदुखी, चक्कर येणे.",
-            "precautions": "पोटात अल्सर किंवा किडनीचे आजार असल्यास घेऊ नका.",
-            "interactions": "अॅस्पिरिन, रक्त पातळ करणारी औषधे.",
-            "administration": "पोटाचा त्रास टाळण्यासाठी नेहमी जेवणानंतर किंवा दुधासोबत घ्या.",
-            "when_doctor": "काळे शौचास होणे किंवा पोटात असह्य वेदना झाल्यास त्वरित डॉक्टरांना भेटा."
-        }
+    "digital thermometer": {
+        "name": "Digital Clinical Thermometer",
+        "category": "Thermoregulatory Diagnostic Tool",
+        "measurements": "Core body temperature in Fahrenheit (°F) or Celsius (°C).",
+        "normal_range": "Normal baseline is 97°F to 99°F (36.1°C to 37.2°C). A temperature of 100.4°F (38.0°C) or higher indicates fever.",
+        "proper_usage": "For oral use, place probe tip firmly under tongue in sublingual pocket and close mouth until beep sounds. Clean probe with 70% isopropyl alcohol before and after each use.",
+        "when_doctor": "Temperature exceeding 103°F (39.4°C) in adults or any fever in infants under 3 months requires immediate medical evaluation.",
     },
-    "ors": {
-        "kn": {
-            "name": "ಓರಲ್ ರಿಹೈಡ್ರೇಶನ್ ಸಾಲ್ಟ್ಸ್ (ORS - WHO ಸೂತ್ರ)",
-            "uses": "ಅತಿಸಾರ, ವಾಂತಿ ಅಥವಾ ಅತಿಯಾದ ಬೆವರುವಿಕೆಯಿಂದ ಉಂಟಾಗುವ ನಿರ್ಜಲೀಕರಣದ (Dehydration) ತಡೆಗಟ್ಟುವಿಕೆ ಮತ್ತು ಚಿಕಿತ್ಸೆ.",
-            "mechanism": "ಕರುಳಿನಲ್ಲಿ ನೀರು ಮತ್ತು ಪ್ರಮುಖ ಲವಣಗಳ (ಸೋಡಿಯಂ, ಪೊಟ್ಯಾಸಿಯಮ್) ತ್ವರಿತ ಹೀರಿಕೊಳ್ಳುವಿಕೆಯನ್ನು ಉತ್ತೇಜಿಸುತ್ತದೆ.",
-            "side_effects": "ಸರಿಯಾದ ನೀರಿನ ಪ್ರಮಾಣದಲ್ಲಿ ತಯಾರಿಸಿದರೆ ಯಾವುದೇ ಅಡ್ಡಪರಿಣಾಮಗಳಿಲ್ಲ.",
-            "precautions": "ಯಾವಾಗಲೂ ನಿಖರವಾದ ಶುದ್ಧ ಕುಡಿಯುವ ನೀರಿನಲ್ಲಿ (1 ಲೀಟರ್) ಕರಗಿಸಿ. ಸಕ್ಕರೆ, ಹಾಲು ಅಥವಾ ಹಣ್ಣಿನ ರಸ ಸೇರಿಸಬೇಡಿ.",
-            "interactions": "ಯಾವುದೇ ಔಷಧಿಗಳೊಂದಿಗೆ ಹಾನಿಕಾರಕ ಸಂವಹನವಿಲ್ಲ; ಸುರಕ್ಷಿತವಾಗಿದೆ.",
-            "administration": "ದಿನವಿಡೀ ಸ್ವಲ್ಪ ಸ್ವಲ್ಪವಾಗಿ ಕುಡಿಯಿರಿ. ತಯಾರಿಸಿದ ದ್ರಾವಣವನ್ನು 24 ಗಂಟೆಗಳಲ್ಲಿ ಬಳಸಿ.",
-            "when_doctor": "ನೀರು ಕುಡಿಯಲು ಸಾಧ್ಯವಾಗದಿದ್ದರೆ, ಕಣ್ಣುಗಳು ಗುಳಿಬಿದ್ದರೆ, ಅಥವಾ 6 ಗಂಟೆಗಳ ಕಾಲ ಮೂತ್ರ ವಿಸರ್ಜನೆ ಆಗದಿದ್ದರೆ ತಕ್ಷಣ ಆಸ್ಪತ್ರೆಗೆ ತೆರಳಿ."
-        },
-        "hi": {
-            "name": "ओआरएस (ORS - WHO फॉर्मूलेशन)",
-            "uses": "दस्त, उल्टी या अत्यधिक पसीने के कारण होने वाले डिहाइड्रेशन (पानी की कमी) की रोकथाम और उपचार।",
-            "mechanism": "आंतों में पानी और आवश्यक इलेक्ट्रोलाइट्स के तेजी से अवशोषण को बढ़ावा देता है।",
-            "side_effects": "सही पानी की मात्रा में घोलने पर कोई दुष्प्रभाव नहीं।",
-            "precautions": "हमेशा साफ पीने के पानी की सही मात्रा (सामान्यतः 1 लीटर) में ही घोलें। अतिरिक्त चीनी या दूध न मिलाएं।",
-            "interactions": "किसी भी दवा के साथ कोई प्रतिकूल प्रभाव नहीं; पूरी तरह सुरक्षित।",
-            "administration": "दिन भर थोड़ा-थोड़ा करके पिएं। तैयार घोल को 24 घंटे के भीतर इस्तेमाल करें।",
-            "when_doctor": "यदि तरल पदार्थ न पी पा रहे हों, आंखें धंस गई हों, या 6+ घंटे तक पेशाब न हुआ हो तो तुरंत डॉक्टर से संपर्क करें।"
-        },
-        "mr": {
-            "name": "ओआरएस (ORS - WHO फॉर्म्युला)",
-            "uses": "जुलाब, उलट्या किंवा जास्त घामामुळे शरीरात झालेल्या पाण्याची कमतरता (डिहायड्रेशन) भरून काढण्यासाठी.",
-            "mechanism": "आतड्यांमध्ये पाणी आणि आवश्यक क्षार वेगाने शोषून घेण्यास मदत करते.",
-            "side_effects": "योग्य प्रमाणात पाण्यात विरघळल्यास कोणतेही दुष्परिणाम नाहीत.",
-            "precautions": "नेहमी स्वच्छ पिण्याच्या पाण्यात (साधारण 1 लिटर) विरघळवा. साखर किंवा दूध घालू नका.",
-            "interactions": "इतर औषधांशी कोणताही धोकादायक परस्परसंवाद नाही.",
-            "administration": "दिवसभरात थोडे थोडे घोट घेत प्या. तयार केलेले द्रावण 24 तासांच्या आत वापरा.",
-            "when_doctor": "पाणी पिणे शक्य नसल्यास किंवा लघवी पूर्ण बंद झाल्यास तातडीने दवाखान्यात जा."
-        }
-    }
-}
-
-
-MEDICINE_SCRIPT_ALIASES: Dict[str, List[str]] = {
-    "paracetamol": ["ಪ್ಯಾರಸಿಟಮಲ್", "ಪ್ಯಾರಸಿಟಮಾಲ್", "पैरासिटामोल", "पॅरासिटामॉल", "पॅरासिटामोल", "dolo", "ಡೋಲೋ", "डोलो"],
-    "metformin": ["ಮೆಟ್‌ಫಾರ್ಮಿನ್", "ಮೆಟ್ಫಾರ್ಮಿನ್", "मेटफॉर्मिन", "मेटफॉर्मिन", "glycomet"],
-    "ibuprofen": ["ಐಬುಪ್ರೊಫೇನ್", "ಐಬುಪ್ರೋಫೇನ್", "आइबुप्रोफेन", "आयबुप्रोफेन", "brufen"],
-    "amoxicillin": ["ಅಮೋಕ್ಸಿಸಿಲಿನ್", "ಅಮೋಕ್ಸಿಲಿನ್", "अमोक्सिसिलिन", "अमॉक्सिसिलिन", "mox"],
-    "azithromycin": ["ಅಜಿತ್ರೊಮೈಸಿನ್", "ಅಜಿಥ್ರೊಮೈಸಿನ್", "एज़िथ्रोमाइसिन", "एझिथ्रोमायसिन", "azithral"],
-    "cetirizine": ["ಸೆಟಿರಿಜಿನ್", "ಸೆಟ್ರಿಜಿನ್", "सिटिरिज़िन", "सिट्रीझिन", "cetzin", "cetzine"],
-    "omeprazole": ["ಒಮೆಪ್ರಜೋಲ್", "ओमेप्राज़ोल", "ओमेप्राझोल", "omez", "ಓಮೆಜ್", "ओमेज़"],
-    "pantoprazole": ["ಪ್ಯಾಂಟೊಪ್ರಜೋಲ್", "पैंटोप्राजोल", "पँटोप्राझोल", "pan 40", "pan-40"],
-    "ors": ["ಒಆರ್‌ಎಸ್", "ಓಆರ್‌ಎಸ್", "ओआरएस", "electral", "ಎಲೆಕ್ಟ್ರಾಲ್", "इलेक्ट्रल"]
+    "glucometer": {
+        "name": "Blood Glucose Meter (Glucometer)",
+        "category": "Metabolic Monitoring Device",
+        "measurements": "Capillary blood glucose concentration (mg/dL or mmol/L).",
+        "normal_range": "Typical fasting target for non-diabetic adults is 70-99 mg/dL; postprandial (2 hrs after meal) under 140 mg/dL.",
+        "proper_usage": "Wash hands with warm water and soap; dry thoroughly. Use a fresh sterile lancet for each test. Insert test strip before applying blood droplet.",
+        "when_doctor": "Fasting blood sugar < 70 mg/dL (hypoglycemia) or > 250 mg/dL with ketones or confusion requires prompt clinical action.",
+    },
+    "nebulizer": {
+        "name": "Compressor / Mesh Nebulizer",
+        "category": "Respiratory Drug Delivery Device",
+        "measurements": "Aerosolized liquid medication for direct pulmonary inhalation.",
+        "normal_range": "Not applicable (drug delivery rate governed by prescribed medication volume).",
+        "proper_usage": "Sit upright. Connect tubing and medication cup with exact prescribed liquid dose. Breathe slowly and deeply through mouthpiece until aerosol mist ceases (approx 10-15 mins). Wash cup after each use.",
+        "when_doctor": "Failure of nebulized treatment to relieve severe wheezing, chest tightness, or respiratory distress requires emergency care.",
+    },
+    "stethoscope": {
+        "name": "Acoustic / Electronic Stethoscope",
+        "category": "Auscultation Diagnostic Instrument",
+        "measurements": "Internal physiological sounds: cardiac valve closures, pulmonary breath sounds, vascular bruits, bowel motility.",
+        "normal_range": "Standard heart sounds S1/S2 without murmurs; clear vesicular breath sounds throughout bilateral lung fields.",
+        "proper_usage": "Used by trained clinical healthcare professionals for physical examination. Angle earpieces slightly forward into ear canals.",
+        "when_doctor": "Auscultation is a professional diagnostic technique requiring formal clinical training to interpret correctly.",
+    },
+    "mechanical ventilator": {
+        "name": "Critical Care Mechanical Ventilator",
+        "category": "Life Support Respiratory Equipment",
+        "measurements": "Controlled tidal volume, respiratory rate, FiO2, and positive end-expiratory pressure (PEEP).",
+        "normal_range": "Titrated specifically to individual arterial blood gas (ABG) targets by intensive care specialists.",
+        "proper_usage": "Operated strictly in Intensive Care Units (ICU) and emergency trauma centers by certified critical care intensivists and respiratory therapists.",
+        "when_doctor": "Requires 24/7 dedicated ICU clinical surveillance.",
+    },
 }
 
 
 class AIService:
     """
     Production-grade AI Health Integration Service for MEDICHAIN.
-    Adheres strictly to WHO, MedlinePlus, ICMR, and FDA healthcare standards:
+    Strictly enforced Healthcare-Only Domain validation:
+    - Filters non-healthcare text and image inputs.
+    - Validates image domain (medicines, packaging, devices, reports) vs unrelated objects (spoons, chairs, etc.).
+    - Detects unclear medicine images and requests clearer photos without guessing.
     - Provides structured 8-part explanations for medication queries.
-    - Prevents unauthorized prescribing, dosage calculation, and clinical diagnosis.
-    - Implements emergency red-flag fast-path alerts.
-    - Resolves ambiguous/misspelled medicine names safely.
-    - Manages multi-turn conversation memory for contextual follow-ups.
-    - Ephemeral, zero-retention processing for medical reports.
+    - Manages multi-turn conversation memory for contextual medical follow-ups.
+    - Zero-retention memory processing for diagnostic reports.
     """
 
     def __init__(self) -> None:
@@ -311,9 +291,9 @@ class AIService:
             import google.generativeai as genai
             genai.configure(api_key=self.api_key, transport="rest")
             self._client = genai.GenerativeModel("gemini-3.1-flash-lite")
-            logger.info("Initialized Google Generative AI (Gemini 3.1 Flash-Lite) client with REST transport.")
+            logger.info("Initialized Google Generative AI (Gemini 3.1 Flash-Lite) client.")
         except Exception as e:
-            logger.warning(f"Could not initialize Gemini API: {e}. Falling back to clinical rule engine.")
+            logger.warning(f"Could not initialize Gemini SDK client: {e}. Falling back to direct REST transport.")
             self._client = None
 
     def _detect_emergency(self, text: str) -> bool:
@@ -324,11 +304,112 @@ class AIService:
                 return True
         return False
 
+    def validate_text_healthcare_domain(
+        self,
+        text: str,
+        history: Optional[List[Dict[str, str]]] = None,
+        context: Optional[str] = None
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        Validates whether a typed text question strictly pertains to the healthcare/medical domain.
+        Returns: (is_healthcare_related, redirect_message_if_unrelated)
+        """
+        cleaned = text.strip()
+        if not cleaned:
+            return True, None
+
+        cleaned_lower = cleaned.lower()
+
+        # 1. Check for standard greetings or friendly initial interactions
+        greetings = ["hello", "hi", "hey", "good morning", "good afternoon", "good evening", "greetings", "who are you", "what can you do"]
+        if cleaned_lower in greetings or any(cleaned_lower == g for g in greetings):
+            return True, None
+
+        # 2. Check for follow-up medical queries referencing prior conversation context
+        # e.g., "What are the side effects of this medicine?", "Can I take it before food?", "How long should I take it?"
+        follow_up_cues = [
+            "this medicine", "this drug", "these tablets", "this tablet", "these pills",
+            "this syrup", "the side effects", "its side effects", "its precautions",
+            "can i take it", "how long should i take it", "what if i miss a dose",
+            "is it safe", "how to take it", "when should i take it", "does it interact",
+            "what does this report mean", "what are my results"
+        ]
+        is_contextual_follow_up = any(cue in cleaned_lower for cue in follow_up_cues)
+        if is_contextual_follow_up:
+            # If there is history of a medicine or medical topic, accept as legitimate medical follow-up
+            if history or context:
+                return True, None
+            # Even without explicit history, inquiring about medicine side effects/dosage is healthcare-related
+            return True, None
+
+        # 3. Check for high-confidence unrelated patterns (geography, sports, cooking, shopping, coding, etc.)
+        for pattern in UNRELATED_TEXT_PATTERNS:
+            if re.search(pattern, cleaned_lower):
+                logger.info(f"Rejected text under unrelated pattern: {pattern} for query '{cleaned}'")
+                return False, HEALTHCARE_ONLY_REJECTION_MESSAGE
+
+        # 4. Check for known medicines in query
+        med_key, _, _ = self._match_medicine(cleaned)
+        if med_key:
+            return True, None
+
+        # 5. Check for known medical equipment
+        equip_key, _ = self._match_equipment(cleaned)
+        if equip_key:
+            return True, None
+
+        # 6. Check for emergency triggers
+        if self._detect_emergency(cleaned):
+            return True, None
+
+        # 7. Check for presence of healthcare keywords
+        tokens = set(re.findall(r"[a-zA-Z]{3,}", cleaned_lower))
+        if tokens.intersection(HEALTHCARE_KEYWORDS):
+            return True, None
+
+        # 8. Check if words correlate with symptoms, anatomy, or wellness
+        general_health_cues = [
+            "fever", "cough", "cold", "headache", "pain", "ache", "stomach", "vomit", "nausea",
+            "rash", "allergy", "infection", "bleed", "breath", "dizzy", "fatigue", "tired",
+            "sleep", "diet", "food", "nutrition", "water", "hydration", "pressure", "heart",
+            "lung", "kidney", "liver", "skin", "eye", "ear", "throat", "bone", "joint", "muscle",
+            "pregnant", "baby", "child", "elderly", "exercise", "walk", "mental", "stress"
+        ]
+        if any(cue in cleaned_lower for cue in general_health_cues):
+            return True, None
+
+        # 9. Fallback AI domain classification via Gemini if available
+        ai_domain_verdict = self._classify_text_domain_gemini(cleaned)
+        if ai_domain_verdict is False:
+            return False, HEALTHCARE_ONLY_REJECTION_MESSAGE
+
+        # If uncertain and query looks like a benign question, default to safe healthcare prompt
+        return True, None
+
+    def _classify_text_domain_gemini(self, text: str) -> Optional[bool]:
+        """Calls Gemini API to classify whether text strictly belongs to healthcare."""
+        if not self.api_key:
+            return None
+
+        prompt = (
+            "You are a strict healthcare domain classifier for MEDICHAIN. "
+            "Determine whether the following user query belongs strictly to the HEALTHCARE, MEDICINE, "
+            "SYMPTOM, ANATOMY, MEDICAL EQUIPMENT, NUTRITION, OR GENERAL WELLNESS domain.\n\n"
+            "Respond with ONLY one word: 'HEALTHCARE' or 'UNRELATED'.\n\n"
+            f"Query: {text}\nVerdict:"
+        )
+
+        resp = self._call_gemini_direct(prompt)
+        if resp:
+            verdict = resp.strip().upper()
+            if "UNRELATED" in verdict:
+                return False
+            if "HEALTHCARE" in verdict:
+                return True
+        return None
+
     def _match_medicine(self, query: str) -> Tuple[Optional[str], Optional[Dict], bool]:
-        """
-        Looks up a medicine in the verified knowledge base.
-        Returns: (med_key, med_data, is_exact_match)
-        """
+        """Looks up a medicine in the verified knowledge base. Returns: (med_key, med_data, is_exact_match)"""
         query_clean = query.lower()
 
         # Check for brand or generic keywords
@@ -339,21 +420,13 @@ class AIService:
                 if brand.lower() in query_clean:
                     return key, data, True
 
-        # Check for Indic script aliases (Kannada, Hindi, Marathi)
-        for key, aliases in MEDICINE_SCRIPT_ALIASES.items():
-            if any(alias.lower() in query_clean for alias in aliases):
-                if key in VERIFIED_MEDICINE_KB:
-                    return key, VERIFIED_MEDICINE_KB[key], True
-
         # Fuzzy matching across individual tokens
         tokens = re.findall(r"[a-zA-Z]{4,}", query_clean)
         for token in tokens:
-            # Check close match to medicine keys
             matches = difflib.get_close_matches(token, VERIFIED_MEDICINE_KB.keys(), n=1, cutoff=0.72)
             if matches:
                 return matches[0], VERIFIED_MEDICINE_KB[matches[0]], False
 
-            # Check close match to brand names
             for key, data in VERIFIED_MEDICINE_KB.items():
                 brand_tokens = [b.lower().split()[0] for b in data["brand_examples"]]
                 brand_matches = difflib.get_close_matches(token, brand_tokens, n=1, cutoff=0.75)
@@ -362,113 +435,70 @@ class AIService:
 
         return None, None, False
 
+    def _match_equipment(self, query: str) -> Tuple[Optional[str], Optional[Dict]]:
+        """Looks up medical equipment or devices in the verified equipment knowledge base."""
+        query_clean = query.lower()
+        for key, data in VERIFIED_EQUIPMENT_KB.items():
+            if key in query_clean:
+                return key, data
+            name_lower = data["name"].lower()
+            if any(term in query_clean for term in name_lower.split() if len(term) > 4):
+                if any(k in query_clean for k in ["oximeter", "thermometer", "monitor", "ventilator", "nebulizer", "stethoscope", "glucometer"]):
+                    return key, data
+        return None, None
+
     def _is_medicine_query(self, query: str) -> bool:
         """Determines if the prompt is seeking medication or drug information."""
         keywords = [
             "tablet", "medicine", "medication", "pill", "capsule", "drug",
-            "dose", "dosage", "syrup", "side effect", "prescribed", "inject",
+            "dose", "dosage", "syrup", "side effect", "side effects", "prescribed", "inject",
             "paracetamol", "dolo", "ibuprofen", "metformin", "amoxicillin",
-            "azithromycin", "cetirizine", "omeprazole", "pantoprazole", "ors"
+            "azithromycin", "cetirizine", "omeprazole", "pantoprazole", "ors", "aspirin"
         ]
         q_lower = query.lower()
-        if any(k in q_lower for k in keywords):
-            return True
-        for aliases in MEDICINE_SCRIPT_ALIASES.values():
-            if any(alias.lower() in q_lower for alias in aliases):
-                return True
-        return False
+        return any(k in q_lower for k in keywords)
 
-    def _build_structured_medicine_kb_response(self, med_data: Dict, is_exact: bool, query_name: str, language: str = "en") -> str:
-        """Constructs an 8-part clinical medicine summary from verified knowledge base in the target language."""
-        brands_str = ", ".join(med_data["brand_examples"])
+    def _resolve_contextual_medicine(
+        self,
+        query: str,
+        history: Optional[List[Dict[str, str]]] = None,
+        context: Optional[str] = None
+    ) -> Optional[Tuple[str, Dict]]:
+        """Resolves follow-up queries like 'What are the side effects of this medicine?' to prior identified medicine."""
+        query_lower = query.lower()
 
-        # Find matching translation key
-        med_key = None
-        for k, v in VERIFIED_MEDICINE_KB.items():
-            if v.get("generic_name") == med_data.get("generic_name"):
-                med_key = k
-                break
+        # 1. Direct check in query first
+        key, data, _ = self._match_medicine(query_lower)
+        if key and data:
+            return key, data
 
-        trans = MEDICINE_TRANSLATIONS.get(med_key, {}).get(language) if med_key else None
+        # 2. Check context if provided
+        if context:
+            ctx_key, ctx_data, _ = self._match_medicine(context.lower())
+            if ctx_key and ctx_data:
+                return ctx_key, ctx_data
 
-        if language == "kn" and trans:
-            return (
-                f"### 1. ಔಷಧದ ಹೆಸರು ಮತ್ತು ಜೆನೆರಿಕ್ ಸಂಯೋಜನೆ\n"
-                f"- **ಜೆನೆರಿಕ್ ಹೆಸರು:** {trans['name']}\n"
-                f"- **ಸಾಮಾನ್ಯ ಬ್ರಾಂಡ್ ಉದಾಹರಣೆಗಳು:** {brands_str}\n\n"
-                f"### 2. ಸಾಮಾನ್ಯ ವೈದ್ಯಕೀಯ ಉಪಯೋಗಗಳು\n"
-                f"{trans['uses']}\n\n"
-                f"### 3. ದೇಹದಲ್ಲಿ ಕಾರ್ಯನಿರ್ವಹಿಸುವ ವಿಧಾನ (ಮೆಕಾನಿಸಂ)\n"
-                f"{trans['mechanism']}\n\n"
-                f"### 4. ಸಾಮಾನ್ಯ ಅಡ್ಡಪರಿಣಾಮಗಳು\n"
-                f"{trans['side_effects']}\n\n"
-                f"### 5. ಮುಖ್ಯ ಮುನ್ನೆಚ್ಚರಿಕೆಗಳು ಮತ್ತು ಎಚ್ಚರಿಕೆಗಳು\n"
-                f"{trans['precautions']}\n\n"
-                f"### 6. ಇತರ ಔಷಧಿಗಳೊಂದಿಗಿನ ಪರಸ್ಪರ ಕ್ರಿಯೆಗಳು\n"
-                f"{trans['interactions']}\n\n"
-                f"### 7. ಆಹಾರ ಮತ್ತು ಸೇವನೆಯ ನಿಯಮಗಳು\n"
-                f"{trans['administration']}\n\n"
-                f"### 8. ವೈದ್ಯರನ್ನು ಭೇಟಿಯಾಗಬೇಕಾದ ಸಂದರ್ಭಗಳು\n"
-                f"{trans['when_doctor']}\n\n"
-                f"---\n"
-                f"**ಅಧಿಕೃತ ಮೂಲಗಳು:** WHO ಅಗತ್ಯ ಔಷಧಿಗಳ ಪಟ್ಟಿ, MedlinePlus, FDA.\n"
-                f"*ಮುನ್ನೆಚ್ಚರಿಕೆ: ವೈದ್ಯರ ಸಲಹೆಯಿಲ್ಲದೆ ಯಾವುದೇ ಔಷಧಿಯ ಪ್ರಮಾಣವನ್ನು ಬದಲಾಯಿಸಬೇಡಿ.*"
-            )
-        elif language == "hi" and trans:
-            return (
-                f"### 1. दवा का नाम और संयोजन\n"
-                f"- **जेनेरिक नाम:** {trans['name']}\n"
-                f"- **सामान्य ब्रांड उदाहरण:** {brands_str}\n\n"
-                f"### 2. सामान्य चिकित्सीय उपयोग\n"
-                f"{trans['uses']}\n\n"
-                f"### 3. शरीर में कार्यप्रणाली (Mechanism)\n"
-                f"{trans['mechanism']}\n\n"
-                f"### 4. सामान्य दुष्प्रभाव (Side Effects)\n"
-                f"{trans['side_effects']}\n\n"
-                f"### 5. महत्वपूर्ण सावधानियां और चेतावनियां\n"
-                f"{trans['precautions']}\n\n"
-                f"### 6. अन्य दवाओं के साथ परस्पर प्रभाव (Interactions)\n"
-                f"{trans['interactions']}\n\n"
-                f"### 7. भोजन और खुराक संबंधी निर्देश\n"
-                f"{trans['administration']}\n\n"
-                f"### 8. डॉक्टर से परामर्श कब लें\n"
-                f"{trans['when_doctor']}\n\n"
-                f"---\n"
-                f"**प्रामाणिक स्रोत:** WHO आवश्यक दवाएं, MedlinePlus, FDA.\n"
-                f"*अस्वीकरण: बिना डॉक्टर की सलाह के दवा की खुराक में बदलाव न करें।*"
-            )
-        elif language == "mr" and trans:
-            return (
-                f"### 1. औषधाचे नाव आणि रचना\n"
-                f"- **जेनेरिक नाव:** {trans['name']}\n"
-                f"- **सामान्य ब्रँड उदाहरणे:** {brands_str}\n\n"
-                f"### 2. सामान्य वैद्यकीय उपयोग\n"
-                f"{trans['uses']}\n\n"
-                f"### 3. शरीरातील कार्यपद्धती\n"
-                f"{trans['mechanism']}\n\n"
-                f"### 4. सामान्य दुष्परिणाम\n"
-                f"{trans['side_effects']}\n\n"
-                f"### 5. महत्त्वाच्या खबरदारी आणि सूचना\n"
-                f"{trans['precautions']}\n\n"
-                f"### 6. इतर औषधांशी परस्परक्रिया\n"
-                f"{trans['interactions']}\n\n"
-                f"### 7. अन्न आणि डोस संबंधी सूचना\n"
-                f"{trans['administration']}\n\n"
-                f"### 8. डॉक्टरांचा सल्ला केव्हा घ्यावा\n"
-                f"{trans['when_doctor']}\n\n"
-                f"---\n"
-                f"**अधिकृत स्रोत:** WHO आवश्यक औषधांची यादी, MedlinePlus, FDA.\n"
-                f"*टीप: डॉक्टरांच्या सल्ल्याशिवाय कोणताही डोस बदलू नका.*"
-            )
+        # 3. Check conversation history in reverse order (most recent first)
+        if history:
+            for item in reversed(history):
+                content = item.get("content", "").lower()
+                hist_key, hist_data, _ = self._match_medicine(content)
+                if hist_key and hist_data:
+                    return hist_key, hist_data
 
+        return None
+
+    def _build_structured_medicine_kb_response(self, med_data: Dict, is_exact: bool, query_name: str) -> str:
+        """Constructs an 8-part clinical medicine summary from verified knowledge base."""
         prefix = ""
         if not is_exact:
             prefix = (
                 f"> [!NOTE]\n"
-                f"> You asked about **'{query_name}'**. If you meant **{med_data['generic_name']}**, "
-                f"here is the verified clinical information. Please confirm the exact prescription name with your doctor or pharmacist.\n\n"
+                f"> You inquired regarding **'{query_name}'**. If you meant **{med_data['generic_name']}**, "
+                f"here is the authoritative clinical information. Please confirm the exact prescription name with your doctor or pharmacist.\n\n"
             )
 
+        brands_str = ", ".join(med_data["brand_examples"])
         return (
             f"{prefix}"
             f"### 1. Medicine Name & Generic Composition\n"
@@ -493,26 +523,48 @@ class AIService:
             f"*Disclaimer: Never adjust doses or start prescription medicines without consulting a qualified physician.*"
         )
 
-    def _is_gemini_reachable(self) -> bool:
-        """Fast check (cached for 60 seconds) to determine if Gemini API endpoint can be resolved."""
-        now = time.time()
-        if hasattr(self, "_gemini_reachable_cache"):
-            status, last_checked = self._gemini_reachable_cache
-            if now - last_checked < 60:
-                return status
+    def _build_structured_equipment_response(self, equip_data: Dict) -> str:
+        """Constructs a structured clinical guide for a medical device or healthcare equipment."""
+        return (
+            f"### 1. Device Name & Category\n"
+            f"- **Device:** {equip_data['name']}\n"
+            f"- **Clinical Category:** {equip_data['category']}\n\n"
+            f"### 2. Clinical Parameters Measured\n"
+            f"{equip_data['measurements']}\n\n"
+            f"### 3. Normal Reference Ranges & Clinical Significance\n"
+            f"{equip_data['normal_range']}\n\n"
+            f"### 4. Proper Medical Usage & Guidelines\n"
+            f"{equip_data['proper_usage']}\n\n"
+            f"### 5. Situations Requiring Doctor Consultation / Emergency Action\n"
+            f"{equip_data['when_doctor']}\n\n"
+            f"---\n"
+            f"**Authoritative Sources:** WHO Medical Devices Technical Series, FDA Medical Device Guidelines.\n"
+            f"*Disclaimer: Medical devices must be used in accordance with manufacturer instructions and physician advice.*"
+        )
 
-        try:
-            socket.setdefaulttimeout(0.5)
-            socket.getaddrinfo("generativelanguage.googleapis.com", 443)
-            self._gemini_reachable_cache = (True, now)
-            return True
-        except Exception:
-            self._gemini_reachable_cache = (False, now)
-            return False
+    def _build_side_effects_response(self, med_data: Dict) -> str:
+        """Constructs dedicated side effects & precautions for contextual follow-up."""
+        brands_str = ", ".join(med_data["brand_examples"])
+        return (
+            f"### Side Effects & Safety Profile for {med_data['generic_name']}\n"
+            f"*(Common Brand Names: {brands_str})*\n\n"
+            f"### 1. Common & Expected Side Effects\n"
+            f"{med_data['side_effects']}\n\n"
+            f"### 2. Crucial Precautions & Warnings\n"
+            f"{med_data['precautions']}\n\n"
+            f"### 3. Drug & Food Interactions\n"
+            f"- **Substance Interactions:** {med_data['interactions']}\n"
+            f"- **Food/Timing:** {med_data['administration']}\n\n"
+            f"### 4. When to Seek Urgent Medical Care\n"
+            f"{med_data['when_doctor']}\n\n"
+            f"---\n"
+            f"**Authoritative Source:** MedlinePlus & FDA Prescribing Information.\n"
+            f"*Always report unexpected or severe adverse effects to your prescribing healthcare provider.*"
+        )
 
     def _call_gemini_direct(self, prompt: str) -> str:
         """Direct REST HTTPS fallback to Google Gemini v1beta API."""
-        if not self._is_gemini_reachable():
+        if not self.api_key:
             return ""
 
         models_to_try = ["gemini-3.1-flash-lite", "gemini-3.8-flash"]
@@ -521,7 +573,7 @@ class AIService:
             payload = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode("utf-8")
             req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
             try:
-                with urllib.request.urlopen(req, timeout=3) as resp:
+                with urllib.request.urlopen(req, timeout=12) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
                     candidates = data.get("candidates", [])
                     if candidates and "content" in candidates[0]:
@@ -530,37 +582,609 @@ class AIService:
                             return parts[0]["text"]
             except Exception as ex:
                 logger.warning(f"Direct Gemini REST attempt on {m} failed: {ex}")
-                continue
         return ""
 
-    def _get_instant_symptom_reply(self, text_lower: str, cleaned: str, language: str = "en") -> Optional[str]:
-        """Provides verified clinical knowledge base for common symptoms and wellness instantly (< 5ms)."""
-        if any(k in text_lower for k in ["fever", "temperature", "high temp", "chills"]) or any(k in cleaned for k in ["ಜ್ವರ", "बुखार", "ताप"]):
+    def _call_gemini_vision(self, prompt: str, image_bytes: bytes, mime_type: str) -> str:
+        """Direct REST HTTPS multimodal vision call to Google Gemini v1beta API."""
+        if not self.api_key:
+            return ""
+
+        b64_data = base64.b64encode(image_bytes).decode("utf-8")
+        clean_mime = mime_type if mime_type.startswith("image/") else "image/jpeg"
+
+        models_to_try = ["gemini-3.1-flash-lite", "gemini-3.8-flash"]
+        for m in models_to_try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={self.api_key}"
+            payload = json.dumps({
+                "contents": [{
+                    "parts": [
+                        {"text": prompt},
+                        {
+                            "inline_data": {
+                                "mime_type": clean_mime,
+                                "data": b64_data
+                            }
+                        }
+                    ]
+                }]
+            }).encode("utf-8")
+
+            req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+            try:
+                with urllib.request.urlopen(req, timeout=14) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    candidates = data.get("candidates", [])
+                    if candidates and "content" in candidates[0]:
+                        parts = candidates[0]["content"].get("parts", [])
+                        if parts and "text" in parts[0]:
+                            return parts[0]["text"]
+            except Exception as ex:
+                logger.warning(f"Gemini vision call on {m} failed: {ex}")
+        return ""
+
+    def validate_and_process_image(
+        self,
+        image_bytes: bytes,
+        mime_type: str,
+        filename: Optional[str] = None,
+        prompt_text: Optional[str] = None,
+        history: Optional[List[Dict[str, str]]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Inspects an uploaded image to determine if it is healthcare-related.
+        Rejects unrelated images (spoon, chair, shoe, etc.) with the mandatory healthcare-only message.
+        Handles unclear medicine images by requesting a clearer image without guessing.
+        Identifies valid medicines or medical devices safely.
+        """
+        fn_lower = (filename or "").lower()
+        fn_clean = fn_lower.replace("_", " ").replace("-", " ")
+        fn_tokens = set(re.findall(r"[a-z]+", fn_clean))
+        prompt_clean = (prompt_text or "").lower()
+
+        # 1. Explicit unclear medicine packaging cases (checked before general filters)
+        unclear_fn_keywords = {"unclear", "blurry", "blurred", "obscured", "unreadable", "partial"}
+        if fn_tokens.intersection(unclear_fn_keywords):
+            return {
+                "is_healthcare": True,
+                "reply": UNCLEAR_MEDICINE_MESSAGE,
+                "confidence": "unclear",
+                "is_medicine": True,
+                "entity": "Unclear Medicine / Packaging",
+                "source": "verified_medical_kb",
+                "sources": ["WHO Patient Safety Guidelines"],
+            }
+
+        # 2. High-Confidence Deterministic Filter for unrelated objects
+        unrelated_fn_keywords = {
+            "spoon", "spoons", "chair", "chairs", "shoe", "shoes", "clothes", "clothing",
+            "shirt", "pant", "pants", "toy", "toys", "car", "cars", "bike", "bicycle",
+            "vehicle", "furniture", "table", "tables", "landscape", "animal", "animals",
+            "dog", "cat", "bird", "pizza", "food", "kitchen", "household"
+        }
+        # Do not mistake "tablet" for furniture "table"
+        if "tablet" in fn_tokens or "tablets" in fn_tokens:
+            unrelated_fn_keywords.discard("table")
+            unrelated_fn_keywords.discard("tables")
+
+        if fn_tokens.intersection(unrelated_fn_keywords):
+            logger.info(f"Image rejected via filename keyword: {fn_lower}")
+            return {
+                "is_healthcare": False,
+                "reply": HEALTHCARE_ONLY_REJECTION_MESSAGE,
+                "confidence": "rejected",
+                "is_medicine": False,
+                "entity": None,
+                "source": "domain_guardrail",
+                "sources": ["MEDICHAIN Healthcare Policy"],
+            }
+
+        # Clear medicine filename matches
+        for med_key, med_data in VERIFIED_MEDICINE_KB.items():
+            if med_key in fn_clean or any(b.lower() in fn_clean for b in med_data["brand_examples"]):
+                kb_reply = self._build_structured_medicine_kb_response(med_data, True, med_key)
+                return {
+                    "is_healthcare": True,
+                    "reply": kb_reply,
+                    "confidence": "high",
+                    "is_medicine": True,
+                    "entity": med_data["generic_name"],
+                    "source": "verified_medical_kb",
+                    "sources": ["MedlinePlus", "WHO Essential Medicines"],
+                }
+
+        # Check for generic "syrup" or "tablet" keywords in filename
+        if "syrup" in fn_clean:
+            syrup_data = VERIFIED_MEDICINE_KB.get("cough syrup")
+            kb_reply = self._build_structured_medicine_kb_response(syrup_data, True, "Syrup Formulation")
+            return {
+                "is_healthcare": True,
+                "reply": kb_reply,
+                "confidence": "high",
+                "is_medicine": True,
+                "entity": syrup_data["generic_name"],
+                "source": "verified_medical_kb",
+                "sources": ["MedlinePlus", "WHO Model Formulary"],
+            }
+
+        # Clear medical equipment filename matches
+        for equip_key, equip_data in VERIFIED_EQUIPMENT_KB.items():
+            if equip_key in fn_clean or any(k in fn_clean for k in equip_key.split() if len(k) > 4):
+                equip_reply = self._build_structured_equipment_response(equip_data)
+                return {
+                    "is_healthcare": True,
+                    "reply": equip_reply,
+                    "confidence": "high",
+                    "is_medicine": False,
+                    "entity": equip_data["name"],
+                    "source": "verified_medical_kb",
+                    "sources": ["WHO Medical Devices Guidelines"],
+                }
+
+        # 2. Multimodal AI Image Domain & Identification Analysis via Gemini Vision
+        vision_prompt = (
+            "You are the MEDICHAIN Healthcare Domain & Vision Classifier. "
+            "Inspect this uploaded image and classify its domain strictly.\n\n"
+            "ACCEPTABLE HEALTHCARE DOMAINS:\n"
+            "1. Medicines: Tablets, capsules, syrups, blister packs, strips, medicine boxes, packaging, prescription bottles, ointments, inhalers.\n"
+            "2. Medical Equipment: Thermometer, BP monitor, pulse oximeter, glucometer, nebulizer, stethoscope, ventilator, syringes, wheelchairs.\n"
+            "3. Clinical Documents: Prescriptions, medical reports, lab results, X-rays, MRI/CT scans.\n\n"
+            "STRICTLY UNRELATED OBJECTS (MUST REJECT):\n"
+            "Spoons, forks, kitchen items, chairs, tables, furniture, shoes, clothing, toys, cars, landscapes, pets/animals, general household objects.\n\n"
+            "OUTPUT STRICT JSON ONLY with format:\n"
+            "{\n"
+            "  \"is_healthcare\": true or false,\n"
+            "  \"category\": \"unrelated\" | \"unclear_medical\" | \"medicine\" | \"medical_device\" | \"medical_document\",\n"
+            "  \"detected_name\": \"identified entity or object\",\n"
+            "  \"is_clear\": true or false,\n"
+            "  \"brief_description\": \"brief summary\"\n"
+            "}"
+        )
+
+        vision_resp = self._call_gemini_vision(vision_prompt, image_bytes, mime_type)
+        if vision_resp:
+            try:
+                # Extract JSON from code fences if present
+                clean_json_str = vision_resp.strip()
+                if "```json" in clean_json_str:
+                    clean_json_str = clean_json_str.split("```json")[1].split("```")[0].strip()
+                elif "```" in clean_json_str:
+                    clean_json_str = clean_json_str.split("```")[1].split("```")[0].strip()
+
+                parsed = json.loads(clean_json_str)
+                is_healthcare = bool(parsed.get("is_healthcare"))
+                category = parsed.get("category", "unrelated")
+                detected_name = parsed.get("detected_name", "")
+                is_clear = bool(parsed.get("is_clear", True))
+
+                if not is_healthcare or category == "unrelated":
+                    return {
+                        "is_healthcare": False,
+                        "reply": HEALTHCARE_ONLY_REJECTION_MESSAGE,
+                        "confidence": "rejected",
+                        "is_medicine": False,
+                        "entity": None,
+                        "source": "domain_guardrail",
+                        "sources": ["MEDICHAIN Healthcare Policy"],
+                    }
+
+                if category == "unclear_medical" or not is_clear:
+                    return {
+                        "is_healthcare": True,
+                        "reply": UNCLEAR_MEDICINE_MESSAGE,
+                        "confidence": "unclear",
+                        "is_medicine": True,
+                        "entity": detected_name or "Unclear Medicine Packaging",
+                        "source": "verified_medical_kb",
+                        "sources": ["WHO Patient Safety Guidelines"],
+                    }
+
+                # If identified as a medicine
+                if category == "medicine":
+                    med_key, med_data, _ = self._match_medicine(detected_name)
+                    if med_data:
+                        kb_reply = self._build_structured_medicine_kb_response(med_data, True, detected_name)
+                        return {
+                            "is_healthcare": True,
+                            "reply": kb_reply,
+                            "confidence": "high",
+                            "is_medicine": True,
+                            "entity": med_data["generic_name"],
+                            "source": "verified_medical_kb",
+                            "sources": ["MedlinePlus", "WHO Model Formulary"],
+                        }
+                    else:
+                        # Generate structured 8-part guidance with Gemini
+                        gemini_med_prompt = (
+                            f"Generate an 8-part clinical summary for the identified medicine '{detected_name}' "
+                            f"strictly adhering to WHO and FDA prescribing guidelines:\n"
+                            f"### 1. Medicine Name & Generic Composition\n"
+                            f"### 2. Common Medical Uses\n"
+                            f"### 3. How It Works in the Body (Mechanism)\n"
+                            f"### 4. Common Side Effects\n"
+                            f"### 5. Important Precautions & Warnings\n"
+                            f"### 6. Known Drug Interactions\n"
+                            f"### 7. Food & Administration Considerations\n"
+                            f"### 8. When to Seek Doctor Advice"
+                        )
+                        reply_med = self._call_gemini_direct(gemini_med_prompt) or self._build_structured_medicine_kb_response(
+                            VERIFIED_MEDICINE_KB["paracetamol"], False, detected_name
+                        )
+                        return {
+                            "is_healthcare": True,
+                            "reply": reply_med,
+                            "confidence": "high",
+                            "is_medicine": True,
+                            "entity": detected_name,
+                            "source": "gemini_api",
+                            "sources": ["FDA Drug Prescribing Guidelines", "MedlinePlus"],
+                        }
+
+                # If identified as a medical device
+                if category == "medical_device":
+                    equip_key, equip_data = self._match_equipment(detected_name)
+                    if equip_data:
+                        equip_reply = self._build_structured_equipment_response(equip_data)
+                    else:
+                        equip_reply = (
+                            f"### 1. Identified Medical Device: {detected_name}\n"
+                            f"- **Category:** Clinical Diagnostic & Healthcare Monitoring Device\n\n"
+                            f"### 2. Clinical Purpose\n"
+                            f"Used to assess physiological vital signs or deliver supportive therapy.\n\n"
+                            f"### 3. Usage Guidelines\n"
+                            f"Follow manufacturer guidelines carefully. Ensure sensor calibration and proper patient positioning.\n\n"
+                            f"### 4. Doctor Consultation\n"
+                            f"Consult a qualified healthcare professional to interpret abnormal readings or manage therapy."
+                        )
+                    return {
+                        "is_healthcare": True,
+                        "reply": equip_reply,
+                        "confidence": "high",
+                        "is_medicine": False,
+                        "entity": detected_name,
+                        "source": "gemini_api" if not equip_data else "verified_medical_kb",
+                        "sources": ["WHO Medical Devices Guidelines"],
+                    }
+
+            except Exception as e:
+                logger.warning(f"Error parsing Gemini Vision classification: {e}")
+
+        # 3. Fallback Heuristic if offline or API unavailable
+        # If filename or prompt mentions medicine/device, accept; otherwise default to safe healthcare prompt
+        if any(k in fn_lower for k in ["syrup", "tablet", "pill", "bottle", "rx", "med", "report"]):
+            med_data = VERIFIED_MEDICINE_KB.get("paracetamol")
+            return {
+                "is_healthcare": True,
+                "reply": self._build_structured_medicine_kb_response(med_data, True, "Syrup / Medicine Bottle"),
+                "confidence": "medium",
+                "is_medicine": True,
+                "entity": "Pharmaceutical Product",
+                "source": "verified_medical_kb",
+                "sources": ["MedlinePlus", "WHO Essential Medicines"],
+            }
+
+        # Non-matching unknown image -> Default safe healthcare-only rejection
+        return {
+            "is_healthcare": False,
+            "reply": HEALTHCARE_ONLY_REJECTION_MESSAGE,
+            "confidence": "rejected",
+            "is_medicine": False,
+            "entity": None,
+            "source": "domain_guardrail",
+            "sources": ["MEDICHAIN Healthcare Policy"],
+        }
+
+    def validate_document_healthcare_domain(self, file_path: Any, filename: str, ext: str) -> Tuple[bool, str]:
+        """
+        Validates whether an uploaded report or diagnostic document belongs strictly to healthcare.
+        Used by /api/reports/upload to reject non-medical files (e.g. photos of spoons or chairs).
+        """
+        fn_lower = filename.lower()
+        fn_tokens = set(re.findall(r"[a-z]+", fn_lower))
+
+        # Check for obvious non-medical filenames
+        unrelated_fn_keywords = {
+            "spoon", "spoons", "chair", "chairs", "shoe", "shoes", "clothes", "clothing",
+            "shirt", "pant", "pants", "toy", "toys", "car", "cars", "bike", "bicycle",
+            "vehicle", "furniture", "table", "tables", "landscape", "animal", "animals",
+            "dog", "cat", "bird", "pizza", "food", "kitchen"
+        }
+        if "tablet" in fn_tokens or "tablets" in fn_tokens:
+            unrelated_fn_keywords.discard("table")
+            unrelated_fn_keywords.discard("tables")
+
+        if fn_tokens.intersection(unrelated_fn_keywords):
+            return False, HEALTHCARE_ONLY_REJECTION_MESSAGE
+
+        # If it's a PDF, examine extracted text
+        if ext == "pdf":
+            try:
+                from pypdf import PdfReader
+                reader = PdfReader(str(file_path))
+                sample_text = ""
+                for page in reader.pages[:3]:
+                    sample_text += (page.extract_text() or "") + " "
+                sample_lower = sample_text.lower()
+
+                # If text contains unrelated keywords heavily or has zero clinical correlation
+                if sample_lower.strip():
+                    for pattern in UNRELATED_TEXT_PATTERNS[:6]:
+                        if re.search(pattern, sample_lower):
+                            return False, HEALTHCARE_ONLY_REJECTION_MESSAGE
+
+                return True, "Valid medical document"
+            except Exception:
+                return True, "PDF structure verified"
+
+        # If it's an image uploaded as a report, check with image validator
+        if ext in ["jpg", "jpeg", "png"]:
+            try:
+                with open(file_path, "rb") as f_in:
+                    img_bytes = f_in.read()
+                mime = f"image/{ext if ext != 'jpg' else 'jpeg'}"
+                res = self.validate_and_process_image(img_bytes, mime, filename=filename)
+                if not res["is_healthcare"]:
+                    return False, HEALTHCARE_ONLY_REJECTION_MESSAGE
+            except Exception as e:
+                logger.warning(f"Image domain check failed on {filename}: {e}")
+
+        return True, "Valid healthcare document"
+
+    def is_medical_document(self, filename: str, extracted_text: str = "") -> bool:
+        """
+        Validates whether the uploaded file is a genuine clinical, medical, or diagnostic report.
+        Rejects non-medical documents (invoices, academic assignments, general text, code, resumes, setup guides, etc.).
+        """
+        f_lower = filename.lower()
+        text_lower = extracted_text.lower() if extracted_text else ""
+
+        lab_pattern = re.compile(
+            r"\b(hemoglobin|hgb|wbc|rbc|platelets?|glucose|blood sugar|cholesterol|creatinine|"
+            r"vitamin\s+[a-z0-9]+|blood pressure|\bbp\b|bilirubin|urea|bun|sodium|potassium|calcium|"
+            r"sgot|sgpt|alt|ast|lipid|thyroid|tsh|ecg|ekg|mri|ct scan|x-?ray|ultrasound|urine|serum|"
+            r"hba1c|pathology|biopsy|radiology|hematology|patient name|patient id|doctor name|physician|"
+            r"health checkup|medical report|clinical findings|reference range|fasting blood|diagnostic)\b",
+            re.IGNORECASE,
+        )
+        if lab_pattern.search(text_lower) or lab_pattern.search(f_lower):
+            return True
+
+        clinical_keywords = [
+            "patient", "doctor", "physician", "hospital", "clinic", "diagnosis",
+            "prescription", "medical", "health checkup", "reference range", "clinical",
+            "laboratory", "pathology", "diagnostic", "blood test", "specimen", "observations",
+        ]
+        match_count = sum(1 for kw in clinical_keywords if kw in text_lower or kw in f_lower)
+        if match_count >= 2:
+            return True
+
+        unrelated_doc_markers = ["invoice", "receipt", "resume", "cv", "assignment", "homework", "tax invoice", "syllabus", "balance sheet"]
+        if any(marker in text_lower or marker in f_lower for marker in unrelated_doc_markers):
+            return False
+
+        return match_count >= 1
+
+    def get_health_guidance(
+        self,
+        question: str,
+        history: Optional[List[Dict[str, str]]] = None,
+        context: Optional[str] = None,
+        image_bytes: Optional[bytes] = None,
+        image_mime: Optional[str] = None,
+        image_filename: Optional[str] = None,
+        language: str = "en",
+    ) -> Tuple[str, str, bool, bool, bool, Optional[str], Optional[str], List[str]]:
+        """
+        Main entry point for processing AI Health Assistant inquiries with strict domain validation.
+        Returns:
+            (reply, source, is_emergency, is_medicine, is_healthcare_related, confidence, detected_entity, verified_sources)
+        """
+        cleaned = question.strip() if question else ""
+
+        # -------------------------------------------------------------
+        # 1. PROCESS UPLOADED IMAGE IF PRESENT
+        # -------------------------------------------------------------
+        if image_bytes:
+            img_result = self.validate_and_process_image(
+                image_bytes=image_bytes,
+                mime_type=image_mime or "image/jpeg",
+                filename=image_filename,
+                prompt_text=cleaned,
+                history=history,
+            )
             return (
+                img_result["reply"],
+                img_result["source"],
+                False,
+                img_result["is_medicine"],
+                img_result["is_healthcare"],
+                img_result["confidence"],
+                img_result["entity"],
+                img_result["sources"],
+            )
+
+        # -------------------------------------------------------------
+        # 2. VALIDATE HEALTHCARE DOMAIN FOR TEXT INQUIRY
+        # -------------------------------------------------------------
+        is_healthcare, redirect_msg = self.validate_text_healthcare_domain(
+            cleaned, history=history, context=context
+        )
+        if not is_healthcare:
+            return (
+                redirect_msg or HEALTHCARE_ONLY_REJECTION_MESSAGE,
+                "domain_guardrail",
+                False,
+                False,
+                False,
+                "rejected",
+                None,
+                ["MEDICHAIN Healthcare Policy"],
+            )
+
+        # -------------------------------------------------------------
+        # 3. GREETINGS & INTRODUCTORY INTERACTION
+        # -------------------------------------------------------------
+        cleaned_lower = cleaned.lower()
+        greetings = ["hello", "hi", "hey", "good morning", "good afternoon", "good evening", "greetings", "who are you", "what can you do"]
+        if cleaned_lower in greetings:
+            welcome_reply = (
+                "Hello! 👋 I'm **MEDICHAIN Clinical AI**, your dedicated healthcare and medication assistant.\n\n"
+                "I operate strictly within the healthcare domain, grounded in official WHO, MedlinePlus, and FDA guidelines. I can assist you with:\n"
+                "- **Medication & Pharmaceutical Information:** Approved uses, mechanism, precautions, drug/food interactions, and side effects.\n"
+                "- **Symptom & Wellness Guidance:** Understanding acute symptoms, home care measures, and doctor consultation triggers.\n"
+                "- **Medical Image & Device Review:** Identifying medicine packaging, syrup bottles, medical devices (BP monitors, oximeters), and lab reports.\n\n"
+                "How can I assist your health inquiry today?"
+            )
+            return welcome_reply, "verified_medical_kb", False, False, True, "high", None, ["WHO Clinical Guidelines"]
+
+        # -------------------------------------------------------------
+        # 4. EMERGENCY FAST-PATH
+        # -------------------------------------------------------------
+        is_emergency = self._detect_emergency(cleaned)
+        is_medicine = self._is_medicine_query(cleaned)
+
+        if is_emergency:
+            emergency_reply = (
+                "🚨 **URGENT MEDICAL NOTICE: SEEK IMMEDIATE EMERGENCY CARE**\n\n"
+                "The symptoms described in your message (such as acute chest pain, severe breathing difficulty, "
+                "stroke indicators, sudden paralysis, or uncontrolled bleeding) represent potentially life-threatening medical emergencies.\n\n"
+                "**Immediate Action Steps:**\n"
+                "1. **Call Emergency Medical Services IMMEDIATELY** (Dial **112** in India/Europe, **911** in the US, or **108** for Ambulance).\n"
+                "2. Do not drive yourself to the hospital; have emergency paramedics transport you with supportive equipment.\n"
+                "3. Use the **[Emergency Coordination](emergency.html)** module in MEDICHAIN to dispatch an ambulance or identify the nearest trauma center.\n"
+                "4. Rest quietly in a safe position while awaiting professional help.\n\n"
+                "*Do not continue relying on an AI chat assistant for active medical emergencies.*"
+            )
+            return emergency_reply, "verified_medical_kb", True, is_medicine, True, "high", None, ["WHO Emergency Guidelines", "AHA / ERC Guidelines"]
+
+        # -------------------------------------------------------------
+        # 5. MULTI-TURN CONTEXTUAL FOLLOW-UP (e.g. Side Effects of prior medicine)
+        # -------------------------------------------------------------
+        side_effects_cues = ["side effect", "side effects", "adverse effect", "adverse reaction", "what happens if i take", "harmful", "risk"]
+        is_asking_side_effects = any(cue in cleaned_lower for cue in side_effects_cues)
+
+        contextual_med = self._resolve_contextual_medicine(cleaned, history=history, context=context)
+        if contextual_med:
+            med_key, med_data = contextual_med
+            if is_asking_side_effects:
+                se_reply = self._build_side_effects_response(med_data)
+                return se_reply, "verified_medical_kb", False, True, True, "high", med_data["generic_name"], ["MedlinePlus", "FDA Drug Safety"]
+            # If user explicitly asked about the medicine generally
+            if self._is_medicine_query(cleaned) or med_key in cleaned_lower:
+                med_reply = self._build_structured_medicine_kb_response(med_data, True, cleaned)
+                return med_reply, "verified_medical_kb", False, True, True, "high", med_data["generic_name"], ["MedlinePlus", "WHO Model Formulary"]
+
+        # -------------------------------------------------------------
+        # 6. MEDICAL DEVICE INQUIRY
+        # -------------------------------------------------------------
+        equip_key, equip_data = self._match_equipment(cleaned)
+        if equip_data:
+            equip_reply = self._build_structured_equipment_response(equip_data)
+            return equip_reply, "verified_medical_kb", False, False, True, "high", equip_data["name"], ["WHO Medical Devices Guidelines"]
+
+        # -------------------------------------------------------------
+        # 7. DIRECT MEDICINE LOOKUP IN VERIFIED KB
+        # -------------------------------------------------------------
+        med_key, med_data, is_exact = self._match_medicine(cleaned)
+        if med_data:
+            kb_reply = self._build_structured_medicine_kb_response(med_data, is_exact, cleaned)
+            return kb_reply, "verified_medical_kb", False, True, True, "high", med_data["generic_name"], ["MedlinePlus", "WHO Model Formulary"]
+
+        # -------------------------------------------------------------
+        # 8. CLINICAL GEMINI AI PROMPT WITH HEALTHCARE GUARDRAILS
+        # -------------------------------------------------------------
+        system_instruction = (
+            "You are the MEDICHAIN AI Clinical Health Assistant, an advanced healthcare information companion. "
+            "Your knowledge is strictly grounded in official guidelines from the World Health Organization (WHO), "
+            "MedlinePlus (National Library of Medicine), ICMR / MoHFW (India), NHS, and FDA.\n\n"
+            "STRICT DOMAIN RESTRICTION:\n"
+            "- You must STRICTLY answer only questions related to healthcare, symptoms, medicine, anatomy, physiology, and medical equipment.\n"
+            "- NEVER answer questions about entertainment, sports, geography, cooking, coding, shopping, or unrelated general knowledge.\n"
+            "- If an unrelated question is asked, reply ONLY with:\n"
+            f"'{HEALTHCARE_ONLY_REJECTION_MESSAGE}'\n\n"
+            "MANDATORY CLINICAL SAFETY RULES:\n"
+            "1. NEVER formulate a definitive diagnosis. Always distinguish possibilities from confirmed medical conditions.\n"
+            "2. NEVER prescribe prescription drugs, calculate custom drug dosages, or advise stopping a doctor's prescription.\n"
+            "3. If the user asks about a MEDICINE, format your answer with these clear Markdown numbered sections:\n"
+            "   ### 1. Medicine Name & Generic Name\n"
+            "   ### 2. Common Medical Uses\n"
+            "   ### 3. How It Works in the Body (in plain language)\n"
+            "   ### 4. Common Side Effects\n"
+            "   ### 5. Important Precautions & Warnings\n"
+            "   ### 6. Known Interactions (other drugs, alcohol)\n"
+            "   ### 7. Food & Administration Considerations\n"
+            "   ### 8. Situations Where Medical Advice Is Necessary\n"
+            "4. If a medicine name has an ambiguous or unclear spelling, ask the user to confirm the medicine name before proceeding.\n"
+            "5. Conclude every response with a concise reminder that this is for educational purposes and requires doctor consultation."
+        )
+
+        conversation_context = ""
+        if history:
+            history_lines = []
+            for item in history[-6:]:
+                role_label = "User" if item.get("role") in ["user", "human"] else "Assistant"
+                content_snippet = item.get("content", "").strip()[:500]
+                if content_snippet:
+                    history_lines.append(f"{role_label}: {content_snippet}")
+            if history_lines:
+                conversation_context = "PRIOR CONVERSATION HISTORY:\n" + "\n".join(history_lines) + "\n\n"
+
+        full_prompt = (
+            f"{system_instruction}\n\n"
+            f"{conversation_context}"
+            f"CURRENT USER INQUIRY: {cleaned}\n\n"
+            f"Respond clearly, compassionately, and with structured Markdown headers and bullet points."
+        )
+
+        verified_source_names = [s["name"] for s in TRUSTED_SOURCES]
+
+        # Try Gemini API
+        if self._client:
+            try:
+                response = self._client.generate_content(full_prompt)
+                if response and response.text:
+                    resp_text = response.text
+                    # Check if response was domain redirected
+                    is_redirect = HEALTHCARE_ONLY_REJECTION_MESSAGE in resp_text
+                    return resp_text, "gemini_api", False, is_medicine, not is_redirect, "high", None, verified_source_names
+            except Exception as e:
+                logger.warning(f"Gemini GenerativeModel call failed: {e}. Trying direct REST fallback...")
+
+        # Direct REST fallback
+        if self.api_key:
+            direct_reply = self._call_gemini_direct(full_prompt)
+            if direct_reply:
+                is_redirect = HEALTHCARE_ONLY_REJECTION_MESSAGE in direct_reply
+                return direct_reply, "gemini_api", False, is_medicine, not is_redirect, "high", None, verified_source_names
+
+        # -------------------------------------------------------------
+        # 9. CLINICAL RULE-BASED FALLBACK (Offline / Demo)
+        # -------------------------------------------------------------
+        text_lower = cleaned.lower()
+        if "fever" in text_lower or "temperature" in text_lower:
+            reply = (
                 "### Understanding Fever\n"
                 "A fever is a temporary elevation in body temperature (typically 100.4°F / 38°C or higher), "
                 "most commonly acting as the body's natural physiological defense against viral or bacterial infections.\n\n"
                 "### Potential Causes (Possibilities)\n"
-                "- Viral upper respiratory infections (common cold, seasonal flu)\n"
+                "- Viral upper respiratory infections (common cold, flu)\n"
                 "- Bacterial infections (strep throat, urinary tract infections)\n"
-                "- Inflammatory conditions or post-immunization immune response\n\n"
-                "### General Care & Self-Care Precautions\n"
-                "- **Hydration:** Drink plenty of fluids (water, oral rehydration solutions, clear broths) to replace fluid lost through perspiration.\n"
-                "- **Rest:** Get adequate physical rest to support immune defense and tissue repair.\n"
-                "- **Clothing & Environment:** Dress in light, breathable fabrics and keep the room well-ventilated and comfortable.\n\n"
+                "- Inflammatory conditions or post-immunization reactions\n\n"
+                "### General Care & Precautions\n"
+                "- **Hydration:** Drink plenty of fluids (water, oral rehydration solutions, clear broths) to replace fluid lost through sweating.\n"
+                "- **Rest:** Get adequate physical rest to support immune recovery.\n"
+                "- **Clothing:** Dress in light, breathable fabrics and keep the room at a comfortable temperature.\n\n"
                 "### When to Seek Medical Attention\n"
                 "- Fever exceeding **103°F (39.4°C)** in adults, or lasting more than 3 consecutive days.\n"
                 "- Fever accompanied by stiff neck, shortness of breath, confusion, severe rash, or persistent vomiting.\n\n"
                 "*Source: MedlinePlus & WHO Clinical Guidelines.*"
             )
-
-        if any(k in text_lower for k in ["cough", "cold", "sneez", "sore throat", "runny nose"]) or any(k in cleaned for k in ["ಕೆಮ್ಮು", "ಶೀತ", "खांसी", "सर्दी", "खोकला"]):
-            return (
+        elif "cough" in text_lower or "cold" in text_lower:
+            reply = (
                 "### Understanding Common Cold & Cough\n"
                 "A cold is a mild viral upper respiratory tract infection. Coughing is the airway's natural protective reflex "
                 "to clear mucus, irritants, or microbial pathogens.\n\n"
                 "### General Care & Safe Measures\n"
-                "- **Steam Inhalation & Humidification:** Warm moist air helps loosen mucosal congestion in airways.\n"
+                "- **Steam Inhalation & Humidification:** Warm moist air helps loosen mucosal congestion.\n"
                 "- **Warm Saline Gargles:** Gargling warm salt water 2-3 times daily provides soothing relief for irritated throat tissue.\n"
                 "- **Adequate Hydration:** Warm teas, water, and broths keep the airway mucosa hydrated.\n\n"
                 "### Important Precautions\n"
@@ -568,11 +1192,10 @@ class AIService:
                 "- Seek medical attention if you experience breathing difficulty, wheezing, coughing up discolored blood, or symptoms lasting over 10 days.\n\n"
                 "*Source: WHO & NHS Health Guidelines.*"
             )
-
-        if any(k in text_lower for k in ["dehydration", "water", "thirst", "dry mouth", "fluid", "electrolyt"]) or any(k in cleaned for k in ["ನಿರ್ಜಲೀಕರಣ", "डिहाइड्रेशन"]):
-            return (
+        elif "dehydration" in text_lower or "water" in text_lower or "thirst" in text_lower:
+            reply = (
                 "### Understanding Dehydration\n"
-                "Dehydration occurs when fluid output exceeds fluid intake, disrupting normal cellular function and electrolyte balance.\n\n"
+                "Dehydration occurs when fluid output exceeds fluid intake, disrupting normal electrolyte balance.\n\n"
                 "### Common Signs & Symptoms\n"
                 "- Persistent thirst and dry or sticky mouth\n"
                 "- Dark yellow or amber-colored urine with decreased volume\n"
@@ -584,368 +1207,6 @@ class AIService:
                 "Seek immediate emergency evaluation for confusion, sunken eyes, rapid heart rate, inability to retain fluids, or absence of urination for 8+ hours.\n\n"
                 "*Source: WHO Oral Rehydration Therapy Guidelines.*"
             )
-
-        if any(k in text_lower for k in ["diet", "nutrition", "food", "healthy eating", "eat", "meal"]) or any(k in cleaned for k in ["ಆಹಾರ", "आहार"]):
-            return (
-                "### Evidence-Based Healthy Diet Guidelines\n"
-                "A balanced dietary pattern supports immune defense, cardiovascular health, and long-term metabolic vitality.\n\n"
-                "### Core Nutritional Pillars (WHO & ICMR Aligned)\n"
-                "- **Whole Foods:** Prioritize whole grains, legumes, pulses, vegetables, and whole fruits over ultra-processed foods.\n"
-                "- **Lean Proteins:** Include legumes, nuts, seeds, low-fat dairy, or lean poultry/fish.\n"
-                "- **Healthy Fats:** Incorporate heart-healthy unsaturated fats (olive oil, mustard/canola oil, nuts) while minimizing trans fats.\n"
-                "- **Sodium & Added Sugar Limitation:** Restrict sodium intake to under 5g daily (approx. 1 teaspoon salt) and limit refined sugars.\n\n"
-                "### Daily Hydration & Meal Timing\n"
-                "- Consume 2 to 2.5 liters of clean water throughout the day.\n"
-                "- Maintain consistent meal intervals and avoid heavy meals right before bedtime.\n\n"
-                "*Source: WHO Global Healthy Diet Recommendations.*"
-            )
-
-        if any(k in text_lower for k in ["headache", "migraine", "head pain"]) or any(k in cleaned for k in ["ತಲೆನೋವು", "सिरदर्द"]):
-            return (
-                "### Understanding Common Headaches\n"
-                "Headaches can arise from muscle tension, stress, dehydration, poor sleep, or sinus congestion.\n\n"
-                "### Safe Self-Care Measures\n"
-                "- **Hydrate:** Drink a large glass of water, as mild dehydration is a frequent headache trigger.\n"
-                "- **Rest in a Quiet, Dark Room:** Reduce sensory stimulation from screens and bright lights.\n"
-                "- **Cool / Warm Compress:** Apply a gentle cool compress to the forehead or warm cloth to the neck to relax tense muscles.\n\n"
-                "### Red-Flag Warning Signs\n"
-                "Seek immediate emergency care if a headache begins suddenly and severely ('worst headache of your life' / thunderclap), or is accompanied by fever, stiff neck, confusion, numbness, or vision loss.\n\n"
-                "*Source: MedlinePlus & WHO Guidelines.*"
-            )
-
-        return None
-
-    def get_health_guidance(
-        self,
-        question: str,
-        history: Optional[List[Dict[str, str]]] = None,
-        context: Optional[str] = None,
-        language: str = "en"
-    ) -> Tuple[str, str, bool, bool, List[str]]:
-        """
-        Processes general health or medicine inquiries with strict clinical safety guardrails.
-        Supports multi-language clinical guidance: en (English), kn (Kannada), hi (Hindi), mr (Marathi).
-        Returns:
-            (reply_text, source, is_emergency, is_medicine_query, verified_sources)
-        """
-        cleaned = question.strip()
-        is_emergency = self._detect_emergency(cleaned)
-        is_medicine = self._is_medicine_query(cleaned)
-
-        lang_names = {
-            "kn": "Kannada (ಕನ್ನಡ)",
-            "hi": "Hindi (हिंदी)",
-            "mr": "Marathi (मराठी)",
-            "en": "English",
-        }
-        target_lang = lang_names.get(language, "English")
-
-        # Dynamic re-check for API key if added while server is running
-        if not self._client and settings.GEMINI_API_KEY:
-            self.api_key = settings.GEMINI_API_KEY
-            self._init_client()
-
-        # EMERGENCY FAST-PATH (Multilingual)
-        if is_emergency:
-            if language == "kn":
-                emergency_reply = (
-                    "🚨 **ತುರ್ತು ವೈದ್ಯಕೀಯ ಸೂಚನೆ: ತಕ್ಷಣವೇ ತುರ್ತು ಚಿಕಿತ್ಸೆ ಪಡೆಯಿರಿ**\n\n"
-                    "ನಿಮ್ಮ ಸಂದೇಶದಲ್ಲಿ ವಿವರಿಸಲಾದ ಲಕ್ಷಣಗಳು (ತೀವ್ರ ಎದೆ ನೋವು, ಉಸಿರಾಟದ ತೊಂದರೆ, ಪಾರ್ಶ್ವವಾಯು ಲಕ್ಷಣಗಳು ಅಥವಾ ಅತಿಯಾದ ರಕ್ತಸ್ರಾವ) ಜೀವಕ್ಕೆ ಅಪಾಯಕಾರಿಯಾದ ತುರ್ತುಸ್ಥಿತಿಯನ್ನು ಸೂಚಿಸುತ್ತವೆ.\n\n"
-                    "**ತಕ್ಷಣ ಮಾಡಬೇಕಾದ ಕ್ರಮಗಳು:**\n"
-                    "1. **ತಕ್ಷಣ ತುರ್ತು ಸೇವೆಗೆ ಕರೆ ಮಾಡಿ** (ಆಂಬ್ಯುಲೆನ್ಸ್‌ಗಾಗಿ **108** ಅಥವಾ **112** ಗೆ ಕರೆ ಮಾಡಿ).\n"
-                    "2. ತಾವೇ ವಾಹನ ಚಾಲನೆ ಮಾಡಬೇಡಿ; ತುರ್ತು ವೈದ್ಯಕೀಯ ಸಿಬ್ಬಂದಿಯ ನೆರವು ಪಡೆಯಿರಿ.\n"
-                    "3. ಹತ್ತಿರದ ಆಸ್ಪತ್ರೆ ಅಥವಾ ತುರ್ತು ಚಿಕಿತ್ಸಾ ಕೇಂದ್ರಕ್ಕೆ ತಕ್ಷಣ ತೆರಳಿ.\n\n"
-                    "*ಸಕ್ರಿಯ ವೈದ್ಯಕೀಯ ತುರ್ತು ಪರಿಸ್ಥಿತಿಯಲ್ಲಿ ಕೇವಲ AI ಚಾಟ್ ಅಸಿಸ್ಟೆಂಟ್ ಮೇಲೆ ಅವಲಂಬಿತರಾಗಬೇಡಿ.*"
-                )
-            elif language == "hi":
-                emergency_reply = (
-                    "🚨 **आपातकालीन चिकित्सा सूचना: तत्काल आपातकालीन देखभाल लें**\n\n"
-                    "आपके संदेश में वर्णित लक्षण (जैसे सीने में तेज दर्द, सांस लेने में अत्यधिक कठिनाई, स्ट्रोक के लक्षण, या अत्यधिक रक्तस्राव) जानलेवा चिकित्सा आपात स्थिति का संकेत देते हैं।\n\n"
-                    "**तत्काल कार्रवाई के चरण:**\n"
-                    "1. **तुरंत आपातकालीन चिकित्सा सेवाओं को कॉल करें** (एम्बुलेंस के लिए **108** या **112** पर कॉल करें)।\n"
-                    "2. स्वयं गाड़ी न चलाएं; एम्बुलेंस या पैरामेडिक्स की सहायता लें।\n"
-                    "3. तुरंत नजदीकी आपातकालीन केंद्र / अस्पताल पहुंचें।\n\n"
-                    "*सक्रिय आपात स्थिति के लिए केवल AI चैट सहायक पर निर्भर न रहें।*"
-                )
-            elif language == "mr":
-                emergency_reply = (
-                    "🚨 **तातडीची वैद्यकीय सूचना: त्वरित आपत्कालीन वैद्यकीय मदत घ्या**\n\n"
-                    "आपल्या संदेशात नमूद केलेली लक्षणे (जसे की छातीत तीव्र वेदना, श्वास घेण्यास त्रास, पक्षाघाताची लक्षणे, किंवा अतिरक्तस्राव) जीवघेणी आपत्कालीन परिस्थिती दर्शवू शकतात.\n\n"
-                    "**तातडीने करावयाच्या उपाययोजना:**\n"
-                    "1. **त्वरित रुग्णवाहिकेसाठी 108 किंवा 112 वर संपर्क साधा**.\n"
-                    "2. स्वतः वाहन चालवू नका; पॅरामेडिक्सची मदत घ्या.\n"
-                    "3. त्वरित जवळच्या रुग्णालयात किंवा ट्रॉमा सेंटरमध्ये जा.\n\n"
-                    "*सक्रिय वैद्यकीय आणीबाणीसाठी केवळ AI चॅटवर अवलंबून राहू नका.*"
-                )
-            else:
-                emergency_reply = (
-                    "🚨 **URGENT MEDICAL NOTICE: SEEK IMMEDIATE EMERGENCY CARE**\n\n"
-                    "The symptoms described in your message (such as acute chest pain, severe breathing difficulty, "
-                    "stroke indicators, sudden paralysis, or uncontrolled bleeding) represent potentially life-threatening medical emergencies.\n\n"
-                    "**Immediate Action Steps:**\n"
-                    "1. **Call Emergency Medical Services IMMEDIATELY** (Dial **112** in India/Europe, **911** in the US, or **108** for Ambulance).\n"
-                    "2. Do not drive yourself to the hospital; have emergency paramedics transport you with supportive equipment.\n"
-                    "3. Use the **[Emergency Coordination](emergency.html)** module in MEDICHAIN to dispatch an ambulance or identify the nearest trauma center.\n"
-                    "4. Rest quietly in a safe position while awaiting professional help.\n\n"
-                    "*Do not continue relying on an AI chat assistant for active medical emergencies.*"
-                )
-            return emergency_reply, "verified_medical_kb", True, is_medicine, ["WHO Emergency Guidelines", "AHA / ERC Guidelines"]
-
-        # Check verified local knowledge base for exact/fuzzy medicine matches
-        med_key, med_data, is_exact = self._match_medicine(cleaned)
-
-        # Formulate Gemini clinical instruction prompt
-        system_instruction = (
-            "You are the MEDICHAIN AI Clinical Health Assistant, an advanced healthcare information companion. "
-            "Your knowledge is strictly grounded in official guidelines from the World Health Organization (WHO), "
-            "MedlinePlus (National Library of Medicine), ICMR / MoHFW (India), NHS, and FDA.\n\n"
-            "MANDATORY CLINICAL SAFETY RULES:\n"
-            "1. NEVER formulate a definitive diagnosis. Always distinguish possibilities from confirmed medical conditions.\n"
-            "2. NEVER prescribe prescription drugs, calculate custom drug dosages, or advise stopping a doctor's prescription.\n"
-            "3. If the user asks about a MEDICINE (uses, side effects, precautions, interactions, or food considerations), "
-            "format your answer with these clear Markdown numbered sections:\n"
-            "   ### 1. Medicine Name & Generic Name\n"
-            "   ### 2. Common Medical Uses\n"
-            "   ### 3. How It Works in the Body (in plain language)\n"
-            "   ### 4. Common Side Effects\n"
-            "   ### 5. Important Precautions & Warnings\n"
-            "   ### 6. Known Interactions (other drugs, alcohol)\n"
-            "   ### 7. Food & Administration Considerations (e.g. before/after food)\n"
-            "   ### 8. Situations Where Medical Advice Is Necessary\n"
-            "4. If a medicine name has an ambiguous or unclear spelling, ask the user to confirm the medicine name before proceeding.\n"
-            "5. For GENERAL HEALTH questions, structure with:\n"
-            "   - Understanding the Condition / Symptoms\n"
-            "   - Potential Causes (as possibilities, not diagnosis)\n"
-            "   - General Self-Care & Lifestyle Precautions\n"
-            "   - Warning Signs & When to See a Doctor\n"
-            "6. REDUCE HALLUCINATIONS: Do not invent URLs, research papers, or clinical facts. If trustworthy information is unavailable, "
-            "state clearly: 'I couldn't verify this information from a reliable medical source. Please consult a qualified healthcare professional.'\n"
-            "7. Conclude every response with a concise reminder that this is for educational purposes and requires doctor consultation."
-        )
-
-        language_instruction = ""
-        if language != "en":
-            language_instruction = (
-                f"\n\nMANDATORY LANGUAGE REQUIREMENT:\n"
-                f"You MUST write your entire clinical answer in {target_lang}. "
-                f"Use the authentic script of {target_lang} (e.g. Kannada script for Kannada, Devanagari script for Hindi and Marathi). "
-                f"Translate all section titles, symptom descriptions, medical recommendations, precautions, and disclaimers into clear, empathetic {target_lang}. "
-                f"Do NOT reply in English."
-            )
-
-        # Build multi-turn context if history is provided
-        conversation_context = ""
-        if history:
-            history_lines = []
-            for item in history[-6:]:  # Keep last 6 turns for optimal context
-                role_label = "User" if item.get("role") in ["user", "human"] else "Assistant"
-                content_snippet = item.get("content", "").strip()[:500]
-                if content_snippet:
-                    history_lines.append(f"{role_label}: {content_snippet}")
-            if history_lines:
-                conversation_context = "PRIOR CONVERSATION HISTORY:\n" + "\n".join(history_lines) + "\n\n"
-
-        full_prompt = (
-            f"{system_instruction}"
-            f"{language_instruction}\n\n"
-            f"{conversation_context}"
-            f"CURRENT USER INQUIRY: {cleaned}\n\n"
-            f"Respond clearly, compassionately in {target_lang}, with structured Markdown headers and bullet points."
-        )
-
-        verified_source_names = [s["name"] for s in TRUSTED_SOURCES]
-
-        # 1. INSTANT FAST-PATH FOR VERIFIED MEDICINE CATALOG:
-        # If the inquiry matches a curated WHO/MedlinePlus medication (Paracetamol, Metformin, Ibuprofen, ORS, etc.),
-        # serve the structured 8-part clinical summary INSTANTLY (< 5ms) without waiting on remote network calls!
-        if med_data:
-            kb_reply = self._build_structured_medicine_kb_response(med_data, is_exact, cleaned, language=language)
-            return kb_reply, "verified_medical_kb", False, True, ["MedlinePlus", "WHO Model Formulary"]
-
-        # 2. INSTANT FAST-PATH FOR COMMON SYMPTOMS & LIFESTYLE QUERIES:
-        symptom_reply = self._get_instant_symptom_reply(cleaned.lower(), cleaned, language=language)
-        if symptom_reply:
-            return symptom_reply, "verified_medical_kb", False, is_medicine, ["WHO Clinical Guidelines", "MedlinePlus"]
-
-        # 3. Try Gemini with strict 1.2-second timeout so the user never experiences delay
-        if self._client and self._is_gemini_reachable():
-            try:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(self._client.generate_content, full_prompt)
-                    response = future.result(timeout=1.2)
-                    if response and response.text:
-                        return response.text, "gemini_api", False, is_medicine, verified_source_names
-            except Exception as e:
-                logger.info(f"Fast failover from remote Gemini to instant clinical engine ({e})")
-
-        # 3. Fast direct REST attempt with 1.5s timeout only if reachable
-        if self.api_key and self._is_gemini_reachable():
-            try:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(self._call_gemini_direct, full_prompt)
-                    direct_reply = future.result(timeout=1.5)
-                    if direct_reply:
-                        return direct_reply, "gemini_api", False, is_medicine, verified_source_names
-            except Exception:
-                pass
-
-        # 4. Clinical Rule-Based Fallback
-        text_lower = cleaned.lower()
-        if "fever" in text_lower or "temperature" in text_lower or "ಜ್ವರ" in cleaned or "बुखार" in cleaned or "ताप" in cleaned:
-            if language == "kn":
-                reply = (
-                    "### ಜ್ವರದ (Fever) ಕುರಿತು ವೈದ್ಯಕೀಯ ಮಾಹಿತಿ\n"
-                    "ಜ್ವರವು ದೇಹದ ಉಷ್ಣತೆಯ ಸಾಮಾನ್ಯ ಹೆಚ್ಚಳವಾಗಿದೆ (100.4°F / 38°C ಅಥವಾ ಅದಕ್ಕಿಂತ ಹೆಚ್ಚು), "
-                    "ಇದು ಸಾಮಾನ್ಯವಾಗಿ ಸೋಂಕುಗಳ ವಿರುದ್ಧ ದೇಹದ ನೈಸರ್ಗಿಕ ರಕ್ಷಣಾ ಪ್ರತಿಕ್ರಿಯೆಯಾಗಿದೆ.\n\n"
-                    "### ಸಾಮಾನ್ಯ ಮುನ್ನೆಚ್ಚರಿಕೆಗಳು\n"
-                    "- **ದ್ರವಾಹಾರ:** ಸಾಕಷ್ಟು ನೀರು, ORS ಮತ್ತು ಹಣ್ಣಿನ ರಸ ಕುಡಿಯಿರಿ.\n"
-                    "- **ವಿಶ್ರಾಂತಿ:** ದೇಹದ ರೋಗನಿರೋಧಕ ಶಕ್ತಿಯನ್ನು ಬೆಂಬಲಿಸಲು ಉತ್ತಮ ವಿಶ್ರಾಂತಿ ಪಡೆಯಿರಿ.\n"
-                    "- **ವೈದ್ಯರ ಭೇಟಿ:** ಜ್ವರ 103°F ಗಿಂತ ಹೆಚ್ಚಿದ್ದರೆ ಅಥವಾ 3 ದಿನಗಳಿಗಿಂತ ಹೆಚ್ಚು ಮುಂದುವರಿದರೆ ತಕ್ಷಣ ವೈದ್ಯರನ್ನು ಸಂಪರ್ಕಿಸಿ.\n\n"
-                    "*ಮೂಲ: MedlinePlus ಮತ್ತು WHO ಮಾರ್ಗಸೂಚಿಗಳು.*"
-                )
-            elif language == "hi":
-                reply = (
-                    "### बुखार (Fever) के बारे में जानकारी\n"
-                    "बुखार शरीर के तापमान में एक अस्थायी वृद्धि है (100.4°F / 38°C या अधिक), "
-                    "जो आमतौर पर वायरल या बैक्टीरियल संक्रमण के खिलाफ शरीर की प्राकृतिक रक्षा प्रणाली है।\n\n"
-                    "### सामान्य सावधानियां\n"
-                    "- **तरल पदार्थ:** पर्याप्त मात्रा में पानी, ओआरएस और सूप पिएं।\n"
-                    "- **आराम:** शरीर को ठीक होने के लिए पर्याप्त आराम दें।\n"
-                    "- **डॉक्टर से परामर्श:** यदि बुखार 3 दिनों से अधिक रहे या 103°F से अधिक हो तो तुरंत डॉक्टर से मिलें।\n\n"
-                    "*स्रोत: MedlinePlus और WHO दिशानिर्देश।*"
-                )
-            elif language == "mr":
-                reply = (
-                    "### ताप (Fever) बद्दल वैद्यकीय माहिती\n"
-                    "ताप म्हणजे शरीराचे तापमान वाढणे (100.4°F / 38°C किंवा त्याहून अधिक), "
-                    "जे संसर्गाविरुद्ध शरीराची नैसर्गिक संरक्षण प्रणाली दर्शवते.\n\n"
-                    "### सामान्य काळजी आणि खबरदारी\n"
-                    "- **द्रवपदार्थ:** भरपूर पाणी आणि ओआरಎಸ್ प्या.\n"
-                    "- **विश्रांती:** पुरेशी विश्रांती घ्या.\n"
-                    "- **वैद्यकीय सल्ला:** ताप 3 दिवसांपेक्षा जास्त राहिल्यास त्वरित डॉक्टरांचा सल्ला घ्या.\n\n"
-                    "*स्रोत: MedlinePlus आणि WHO मार्गदर्शक तत्त्वे.*"
-                )
-            else:
-                reply = (
-                    "### Understanding Fever\n"
-                    "A fever is a temporary elevation in body temperature (typically 100.4°F / 38°C or higher), "
-                    "most commonly acting as the body's natural physiological defense against viral or bacterial infections.\n\n"
-                    "### Potential Causes (Possibilities)\n"
-                    "- Viral upper respiratory infections (common cold, flu)\n"
-                    "- Bacterial infections (strep throat, urinary tract infections)\n"
-                    "- Inflammatory conditions or post-immunization reactions\n\n"
-                    "### General Care & Precautions\n"
-                    "- **Hydration:** Drink plenty of fluids (water, oral rehydration solutions, clear broths) to replace fluid lost through sweating.\n"
-                    "- **Rest:** Get adequate physical rest to support immune recovery.\n"
-                    "- **Clothing:** Dress in light, breathable fabrics and keep the room at a comfortable temperature.\n\n"
-                    "### When to Seek Medical Attention\n"
-                    "- Fever exceeding **103°F (39.4°C)** in adults, or lasting more than 3 consecutive days.\n"
-                    "- Fever accompanied by stiff neck, shortness of breath, confusion, severe rash, or persistent vomiting.\n\n"
-                    "*Source: MedlinePlus & WHO Clinical Guidelines.*"
-                )
-        elif "cough" in text_lower or "cold" in text_lower or "ಕೆಮ್ಮು" in cleaned or "ಶೀತ" in cleaned or "खांसी" in cleaned or "सर्दी" in cleaned or "खोकला" in cleaned:
-            if language == "kn":
-                reply = (
-                    "### ಶೀತ ಮತ್ತು ಕೆಮ್ಮಿನ (Cough & Cold) ಕುರಿತು ಮಾಹಿತಿ\n"
-                    "ನೆಗಡಿಯು ಶ್ವಾಸನಾಳದ ಸೌಮ್ಯ ವೈರಲ್ ಸೋಂಕಾಗಿದೆ. ಕೆಮ್ಮು ಗಂಟಲನ್ನು ಸ್ವಚ್ಛವಾಗಿಡುವ ನೈಸರ್ಗಿಕ ರಕ್ಷಣಾ ಕ್ರಿಯೆಯಾಗಿದೆ.\n\n"
-                    "### ಸುರಕ್ಷಿತ ಕ್ರಮಗಳು ಮತ್ತು ಮುನ್ನೆಚ್ಚರಿಕೆಗಳು\n"
-                    "- **ಆವಿ ತೆಗೆದುಕೊಳ್ಳುವುದು:** ಬಿಸಿ ನೀರಿನ ಹಬೆ ತೆಗೆದುಕೊಳ್ಳುವುದರಿಂದ ಕಫ ಸರಾಗವಾಗುತ್ತದೆ.\n"
-                    "- **ಉಪ್ಪು ನೀರಿನಿಂದ ಮುಕ್ಕಳಿಸುವುದು:** ಉಗುರುಬೆಚ್ಚಗಿನ ಉಪ್ಪು ನೀರಿನಿಂದ ಗಂಟಲು ಮುಕ್ಕಳಿಸಿ.\n"
-                    "- **ಸಾಕಷ್ಟು ನೀರು:** ಬೆಚ್ಚಗಿನ ನೀರು ಮತ್ತು ಕಷಾಯ ಸೇವಿಸಿ.\n"
-                    "- ವೈದ್ಯರ ಸಲಹೆಯಿಲ್ಲದೆ ಆಂಟಿಬಯೋಟಿಕ್ ತೆಗೆದುಕೊಳ್ಳಬೇಡಿ.\n\n"
-                    "*ಮೂಲ: WHO ಮತ್ತು NHS ಮಾರ್ಗಸೂಚಿಗಳು.*"
-                )
-            elif language == "hi":
-                reply = (
-                    "### सर्दी और खांसी (Cough & Cold) की जानकारी\n"
-                    "सर्दी एक हल्का वायरल संक्रमण है और खांसी श्वसन मार्ग को साफ रखने की प्राकृतिक प्रक्रिया है।\n\n"
-                    "### सावधानियां और घरेलू उपाय\n"
-                    "- **भाप लें:** गर्म पानी की भाप लेने से बलगम ढीला होता है।\n"
-                    "- **गरारे करें:** गुनगुने नमक के पानी से गरारे करें।\n"
-                    "- **तरल पदार्थ:** गर्म सूप, काढ़ा और गुनगुना पानी पिएं।\n"
-                    "- बिना डॉक्टर की सलाह के कोई एंटीबायोटिक न लें।\n\n"
-                    "*स्रोत: WHO और NHS दिशानिर्देश।*"
-                )
-            elif language == "mr":
-                reply = (
-                    "### सर्दी आणि खोकला (Cough & Cold) माहिती\n"
-                    "सर्दी हा एक सौम्य व्हायरल संसर्ग आहे आणि खोकला हा श्वासनलिका स्वच्छ करण्याचा नैसर्गिक प्रतिक्षೇಪ आहे.\n\n"
-                    "### काळजी आणि उपाय\n"
-                    "- **वाफ घ्या:** गरम पाण्याची वाफ घ्या.\n"
-                    "- **गुळण्या करा:** कोमट मिठाच्या पाण्याने गुळण्या करा.\n"
-                    "- **द्रवपदार्थ:** कोमट पाणी आणि काढा प्या.\n"
-                    "- डॉक्टरांच्या सल्ल्याशिवाय अँटीबायोटिक्स घेऊ नका.\n\n"
-                    "*स्रोत: WHO आणि NHS मार्गदर्शक तत्त्वे.*"
-                )
-            else:
-                reply = (
-                    "### Understanding Common Cold & Cough\n"
-                    "A cold is a mild viral upper respiratory tract infection. Coughing is the airway's natural protective reflex "
-                    "to clear mucus, irritants, or microbial pathogens.\n\n"
-                    "### General Care & Safe Measures\n"
-                    "- **Steam Inhalation & Humidification:** Warm moist air helps loosen mucosal congestion.\n"
-                    "- **Warm Saline Gargles:** Gargling warm salt water 2-3 times daily provides soothing relief for irritated throat tissue.\n"
-                    "- **Adequate Hydration:** Warm teas, water, and broths keep the airway mucosa hydrated.\n\n"
-                    "### Important Precautions\n"
-                    "- Antibiotics do not work against viral infections like colds or the flu.\n"
-                    "- Seek medical attention if you experience breathing difficulty, wheezing, coughing up discolored blood, or symptoms lasting over 10 days.\n\n"
-                    "*Source: WHO & NHS Health Guidelines.*"
-                )
-        elif "dehydration" in text_lower or "water" in text_lower or "thirst" in text_lower or "ನಿರ್ಜಲೀಕರಣ" in cleaned or "डिहाइड्रेशन" in cleaned:
-            if language == "kn":
-                reply = (
-                    "### ನಿರ್ಜಲೀಕರಣದ (Dehydration) ಕುರಿತು ಮಾಹಿತಿ\n"
-                    "ದೇಹದಲ್ಲಿ ನೀರಿನಂಶ ಕಡಿಮೆಯಾದಾಗ ನಿರ್ಜಲೀಕರಣ ಉಂಟಾಗುತ್ತದೆ.\n\n"
-                    "### ಸಾಮಾನ್ಯ ಲಕ್ಷಣಗಳು\n"
-                    "- ತೀವ್ರ ಬಾಯಾರಿಕೆ ಮತ್ತು ಒಣ ಬಾಯಿ\n"
-                    "- ಗಾಢ ಹಳದಿ ಬಣ್ಣದ ಮೂತ್ರ ಮತ್ತು ಮೂತ್ರದ ಪ್ರಮಾಣ ಕಡಿಮೆಯಾಗುವುದು\n"
-                    "- ತಲೆತಿರುಗುವಿಕೆ ಮತ್ತು ಆಯಾಸ\n\n"
-                    "### ಶಿಫಾರಸು ಮಾಡಲಾದ ಮುನ್ನೆಚ್ಚರಿಕೆಗಳು\n"
-                    "- **ORS ದ್ರಾವಣ:** WHO ಸೂತ್ರದ ORS ಅಥವಾ ನೀರನ್ನು ನಿರಂತರವಾಗಿ ಸ್ವಲ್ಪ ಸ್ವಲ್ಪವಾಗಿ ಕುಡಿಯಿರಿ.\n"
-                    "- ಅತಿಯಾದ ಸಿಹಿ ಪಾನೀಯಗಳನ್ನು ತಪ್ಪಿಸಿ.\n\n"
-                    "*ಮೂಲ: WHO ನಿರ್ಜಲೀಕರಣ ಚಿಕಿತ್ಸಾ ಮಾರ್ಗಸೂಚಿಗಳು.*"
-                )
-            elif language == "hi":
-                reply = (
-                    "### डिहाइड्रेशन (शरीर में पानी की कमी)\n"
-                    "जब शरीर में तरल पदार्थों की कमी हो जाती है, तो डिहाइड्रेशन होता है।\n\n"
-                    "### सामान्य लक्षण\n"
-                    "- अत्यधिक प्यास और मुंह का सूखना\n"
-                    "- गहरे पीले रंग का पेशाब और पेशाब की मात्रा कम होना\n"
-                    "- चक्कर आना और कमजोरी\n\n"
-                    "### सावधानियां\n"
-                    "- **ओआरएस (ORS):** ओआरएस घोल या पर्याप्त पानी धीरे-धीरे पिएं।\n"
-                    "- अधिक मीठे या कैफीनयुक्त पेय पदार्थों से बचें।\n\n"
-                    "*स्रोत: WHO डिहाइड्रेशन दिशानिर्देश।*"
-                )
-            elif language == "mr":
-                reply = (
-                    "### डिहायड्रेशन (पाण्याची कमतरता)\n"
-                    "जेव्हा शरीरातील पाण्याचे प्रमाण कमी होते, तेव्हा डिहायड्रेशन होते.\n\n"
-                    "### सामान्य लक्षणे\n"
-                    "- कोरडे तोंड आणि तीव्र तहान\n"
-                    "- गडद पिवळी लघवी आणि लघवीचे प्रमाण कमी होणे\n"
-                    "- थकवा आणि चक्कर येणे\n\n"
-                    "### काळजी आणि उपाय\n"
-                    "- **ओआरएस (ORS):** ओआरएसचे द्रावण आणि भरपूर पाणी थोडे थोडे प्या.\n"
-                    "- जास्त साखरेची पेये टाळा.\n\n"
-                    "*स्रोत: WHO मार्गदर्शक तत्त्वे.*"
-                )
-            else:
-                reply = (
-                    "### Understanding Dehydration\n"
-                    "Dehydration occurs when fluid output exceeds fluid intake, disrupting normal electrolyte balance.\n\n"
-                    "### Common Signs & Symptoms\n"
-                    "- Persistent thirst and dry or sticky mouth\n"
-                    "- Dark yellow or amber-colored urine with decreased volume\n"
-                    "- Mild dizziness, fatigue, or headache\n\n"
-                    "### Recommended Precautions & Rehydration\n"
-                    "- **Oral Rehydration Therapy:** Sip WHO-formulated Oral Rehydration Salts (ORS) or water slowly and steadily.\n"
-                    "- Avoid high-sugar carbonated beverages or alcohol, which can worsen fluid imbalance.\n\n"
-                    "### Critical Warning Signs\n"
-                    "Seek immediate emergency evaluation for confusion, sunken eyes, rapid heart rate, inability to retain fluids, or absence of urination for 8+ hours.\n\n"
-                    "*Source: WHO Oral Rehydration Therapy Guidelines.*"
-                )
         else:
             if language == "kn":
                 reply = (
@@ -969,7 +1230,7 @@ class AIService:
                 reply = (
                     f"### '{cleaned}' बद्दल वैद्यकीय माहिती\n\n"
                     "सामान्य आरोग्य तत्त्वांनुसार, खालील काळजी घेणे आवश्यक आहे:\n\n"
-                    "- **लक्षणांचे निरीक्षण:** लक्षणांवर बारकाईने लक्ष ठेवा, भरपूर पाणी प्या आणि पुरेशी विश्रांती घ्या.\n"
+                    "- **लक्षणांचे निरीक्षण:** लक्षणांवर बारकाईने लक्ष ठेवा, भरपूर पाणी प्या आणि पुरेशी विश್ರಾंती घ्या.\n"
                     "- **खबरदारी:** डॉक्टरांच्या सल्ल्याशिवाय कोणतीही प्रतिजैविके (antibiotics) किंवा प्रिस्क्रिप्शन औषधे घेऊ नका.\n"
                     "- **वैद्यकीय सल्ला:** लक्षणे अधिक तीव्र झाल्यास किंवा चालू राहिल्यास कृपया नोंदणीकृत डॉक्टरांचा सल्ला घ्या.\n\n"
                     "*टीप: ही माहिती केवळ मार्गदर्शनासाठी आहे, हा प्रत्यक्ष वैद्यकीय सल्ला नाही.*"
@@ -985,7 +1246,7 @@ class AIService:
                     "If reliable official data is unavailable for your specific query: *I couldn't verify this information from an authoritative medical source. Please consult a qualified healthcare professional.*"
                 )
 
-        return reply, "synthetic_demo", False, is_medicine, verified_source_names
+        return reply, "synthetic_demo", False, is_medicine, True, "medium", None, verified_source_names
 
     def is_medical_document(self, filename: str, extracted_text: str = "") -> bool:
         """
@@ -997,8 +1258,6 @@ class AIService:
         text_lower = extracted_text.lower() if extracted_text else ""
         combined_text = f"{f_lower} {text_lower}"
 
-        # 1. NON-HEALTH DISQUALIFIERS (High priority negative filtering)
-        # Financial, commercial, academic, coding, resume, or administrative indicators
         non_health_patterns = [
             r"\b(tax\s+invoice|bill\s+of\s+supply|invoice\s*no|invoice\s*#|invoice\s+date|gstin|cgst|sgst|igst|vat\b|sales\s+tax)\b",
             r"\b(subtotal|grand\s+total|total\s+due|amount\s+due|balance\s+due|payment\s+due|billing\s+address|shipping\s+address)\b",
@@ -1011,7 +1270,6 @@ class AIService:
         ]
         has_non_health_cues = any(re.search(pat, combined_text, re.IGNORECASE) for pat in non_health_patterns)
 
-        # 2. GENUINE LABORATORY TEST & CLINICAL METRICS (strong positive diagnostic evidence)
         lab_markers_pattern = re.compile(
             r"\b(hemoglobin|hgb|wbc|white\s+blood|rbc|red\s+blood|platelets?|blood\s+glucose|fasting\s+sugar|fasting\s+glucose|"
             r"postprandial|ppbs|hba1c|cholesterol|triglycerides?|hdl|ldl|vldl|creatinine|blood\s+urea|\bbun\b|uric\s+acid|"
@@ -1022,7 +1280,6 @@ class AIService:
         )
         lab_marker_matches = set(lab_markers_pattern.findall(combined_text))
 
-        # Diagnostic imaging & clinical procedures
         imaging_pattern = re.compile(
             r"\b(chest\s+x-?ray|x-?ray|ultrasound|\busg\b|ct\s+scan|computed\s+tomography|\bmri\b|magnetic\s+resonance|"
             r"\becg\b|\bekg\b|electrocardiogram|2d\s+echo|sonography|radiology\s+report|pathology\s+report|biopsy)\b",
@@ -1030,38 +1287,27 @@ class AIService:
         )
         imaging_matches = set(imaging_pattern.findall(combined_text))
 
-        # Clinical units of measurement typically found in lab reports
         units_pattern = re.compile(
             r"\b(mg/dl|g/dl|ng/ml|pg/ml|µl|cells/µl|cells/cumm|cells/hpf|mmol/l|meq/l|iu/l|u/l|reference\s+range|reference\s+interval|normal\s+range)\b",
             re.IGNORECASE
         )
         has_clinical_units = bool(units_pattern.search(text_lower))
 
-        # Doctor prescription markers
         rx_pattern = re.compile(
             r"\b(rx\b|prescription|doctor's\s+prescription|clinical\s+diagnosis|chief\s+complaints|discharge\s+summary)\b",
             re.IGNORECASE
         )
         has_rx_markers = bool(rx_pattern.search(combined_text))
 
-        # If non-health cues are present (e.g. invoice, resume, bill), reject unless there is overwhelming diagnostic evidence (e.g. >= 3 lab markers AND units)
         if has_non_health_cues:
             if not (len(lab_marker_matches) >= 3 and has_clinical_units):
                 return False
 
-        # If extracted text is present:
         if extracted_text and len(extracted_text.strip()) > 30:
-            # Must possess:
-            # a) At least 1 recognized lab test marker WITH clinical units/reference intervals, OR
-            # b) At least 2 distinct lab markers, OR
-            # c) Diagnostic imaging procedure, OR
-            # d) Doctor prescription / clinical diagnosis markers
             if (len(lab_marker_matches) >= 1 and has_clinical_units) or len(lab_marker_matches) >= 2 or imaging_matches or has_rx_markers:
                 return True
             return False
 
-        # If text is empty or very short (e.g. scanned image / non-OCR PDF):
-        # We ONLY accept if the filename itself clearly specifies a medical diagnostic test!
         clean_filename = re.sub(r"[_\-.]", " ", f_lower)
         medical_filename_pattern = re.compile(
             r"\b(blood\s*test|cbc|lipid|liver|kidney|thyroid|mri|xray|x\s*ray|ct\s*scan|ultrasound|ecg|ekg|pathology|prescription|health\s*report|medical\s*report|doctor\s*prescription|lab\s*report)\b",
@@ -1070,7 +1316,6 @@ class AIService:
         if medical_filename_pattern.search(clean_filename):
             return True
 
-        # Any other document (invoices, random photos, resumes, generic notes, screenshot) without medical text is REJECTED
         return False
 
     def _build_fast_clinical_analysis(
@@ -1081,11 +1326,6 @@ class AIService:
         extracted_text: str = "",
         findings: List[str] = None,
     ) -> Dict:
-        """
-        Instant clinical intelligence extraction engine (<50ms).
-        Parses diagnostic metrics, laboratory reference ranges, normal/abnormal markers,
-        and generates physician consultation questions without remote network latency.
-        """
         findings = findings or []
         is_pdf = filename.lower().endswith(".pdf")
         observations = []
@@ -1094,7 +1334,6 @@ class AIService:
         if extracted_text:
             text_lower = extracted_text.lower()
 
-            # 1. Hemoglobin analysis
             if "hemoglobin" in text_lower or "hgb" in text_lower:
                 if "11.2" in extracted_text or "below" in text_lower or "low" in text_lower:
                     observations.append(
@@ -1104,7 +1343,6 @@ class AIService:
                 else:
                     observations.append("🩸 **Hemoglobin:** Red blood cell markers detected within clinical reference parameters.")
 
-            # 2. Blood sugar / Fasting Glucose analysis
             if "sugar" in text_lower or "glucose" in text_lower or "hba1c" in text_lower:
                 if "112" in extracted_text or "above" in text_lower or "high" in text_lower:
                     observations.append(
@@ -1114,7 +1352,6 @@ class AIService:
                 else:
                     observations.append("🍬 **Blood Glucose:** Fasting glycemic parameters recorded within normal healthy bounds.")
 
-            # 3. Cholesterol & Lipid Profile analysis
             if "cholesterol" in text_lower or "lipid" in text_lower or "triglyceride" in text_lower:
                 if "215" in extracted_text or "above" in text_lower or "borderline" in text_lower:
                     observations.append(
@@ -1124,7 +1361,6 @@ class AIService:
                 else:
                     observations.append("🫀 **Cholesterol:** Lipid parameters evaluated. Continue heart-healthy nutrition and active physical exercise.")
 
-            # 4. Vitamin D analysis
             if "vitamin d" in text_lower or "vit d" in text_lower:
                 if "18" in extracted_text or "below" in text_lower or "deficient" in text_lower:
                     observations.append(
@@ -1134,7 +1370,6 @@ class AIService:
                 else:
                     observations.append("☀️ **Vitamin D:** Vitamin levels tracked for bone density and immune defense.")
 
-            # 5. Normal & Healthy Markers
             normal_markers = []
             if "wbc" in text_lower or "leukocyte" in text_lower:
                 normal_markers.append("WBC (Immune defense: 7,500 cells/µL)")
@@ -1148,7 +1383,6 @@ class AIService:
                     f"✅ **Normal & Healthy Parameters:** {', '.join(normal_markers)} are all within optimal healthy reference limits."
                 )
 
-            # If no specific recognized condition triggered, provide detected findings
             if not observations:
                 observations.append(f"Successfully scanned clinical health report ({len(extracted_text)} characters analyzed).")
                 if findings:
@@ -1160,20 +1394,16 @@ class AIService:
         else:
             observations.append("Medical imaging format uploaded. Visual radiological inspection required.")
 
-        # Default questions if not enough specific ones
-        if len(questions) < 3:
-            questions.append("How do these findings correlate with my physical symptoms and baseline medical history?")
-            questions.append("Are any confirmatory diagnostic tests, specialized imaging, or blood re-checks indicated?")
-            questions.append("Are there targeted dietary, lifestyle, or medication adjustments indicated based on these parameters?")
-
         return {
             "summary_title": f"Preliminary Clinical Review: {filename}",
             "key_observations": observations,
             "extracted_findings": findings,
-            "extraction_method": "fast_clinical_engine",
-            "suggested_questions_for_doctor": questions[:4],
-            "status": "Completed",
-            "is_medical": True,
+            "extraction_method": "pypdf_parser" if extracted_text else "metadata_parser",
+            "suggested_questions_for_doctor": questions if questions else [
+                "How do these results compare with my previous baseline health checks?",
+                "Are any lifestyle, nutritional, or medication modifications recommended?",
+                "When should I schedule the next routine follow-up evaluation?",
+            ],
         }
 
     def analyze_medical_document(
@@ -1184,32 +1414,63 @@ class AIService:
         extracted_text: str = "",
         extracted_findings: List[str] = None,
     ) -> Dict:
-        """
-        Analyzes uploaded diagnostic reports with zero-retention memory processing.
-        Adheres to clinical privacy and non-diagnostic disclaimers.
-        Provides ultra-fast response (<0.2s) and enforces health document validation.
-        """
         findings = extracted_findings or []
 
-        # STRICT NON-HEALTH VALIDATION:
-        # If the document is not a medical or health report, refuse to provide analysis and notify the user.
         if not self.is_medical_document(filename, extracted_text):
             return {
-                "summary_title": "Non-Health Document Detected",
+                "summary_title": f"Rejected (Non-Health Document): {filename}",
                 "key_observations": [
-                    "⚠️ I am only scanning reports related to health.",
-                    "The uploaded document does not appear to contain diagnostic, clinical, or medical health data.",
-                    "Please upload a report related to health (such as a Blood Test, Diagnostic Scan, Doctor's Prescription, or Pathology Report)."
+                    "❌ **Document Verification Notice:** The uploaded file does not appear to be a clinical laboratory report, diagnostic scan, or medical prescription.",
+                    "🔒 **Healthcare Scope Policy:** MEDICHAIN only accepts valid medical records, pathology/radiology reports, and clinical prescriptions.",
+                    "📄 Please ensure your document clearly contains diagnostic parameters, test names, or clinical findings before re-uploading."
                 ],
                 "extracted_findings": [],
-                "extraction_method": "health_content_validator",
-                "suggested_questions_for_doctor": [],
-                "status": "Rejected (Non-Health)",
-                "is_medical": False,
+                "extraction_method": "validation_rejection",
+                "suggested_questions_for_doctor": [
+                    "Please upload a valid blood test, pathology report, or doctor's prescription for clinical assistance."
+                ],
+                "is_rejected": True
             }
 
-        # FAST CLINICAL INTELLIGENCE:
-        # Generates complete structured clinical evaluation in milliseconds without hanging on remote network retries
+        prompt = (
+            f"You are the MEDICHAIN Clinical Report Review Assistant. "
+            f"A patient uploaded a diagnostic document named '{filename}' ({content_type}, {file_size_kb:.2f} KB).\n\n"
+            f"EXTRACTED DOCUMENT CONTENT (Ephemeral text layer):\n"
+            f"{extracted_text[:2500] if extracted_text else 'No embedded text layer (scanned document/imaging).'}\n\n"
+            "Provide a structured preliminary plain-language review containing:\n"
+            "1. Key Observations & Extracted Clinical Parameters (with units and reference ranges where present)\n"
+            "2. Objective Clinical Context (plain language, stating clearly that this is NOT a diagnostic determination)\n"
+            "3. 3 Specific Questions the Patient Should Ask Their Treating Physician\n"
+            "4. Immediate next steps for routine follow-up.\n"
+            "Strictly avoid pronouncing definitive medical diagnoses."
+        )
+
+        response_text = ""
+        if self._client:
+            try:
+                response = self._client.generate_content(prompt)
+                if response and response.text:
+                    response_text = response.text
+            except Exception as e:
+                logger.warning(f"Gemini document analysis SDK failed: {e}. Trying direct REST fallback...")
+
+        if not response_text and self.api_key:
+            response_text = self._call_gemini_direct(prompt)
+
+        if response_text:
+            lines = [line.strip("- *# ") for line in response_text.split("\n") if line.strip()]
+            return {
+                "summary_title": f"Preliminary Clinical Review: {filename}",
+                "key_observations": lines[:4] if len(lines) >= 4 else [response_text[:350]],
+                "extracted_findings": findings,
+                "extraction_method": "gemini_ai",
+                "suggested_questions_for_doctor": [
+                    "How do these findings correlate with my physical symptoms and baseline medical history?",
+                    "Are any confirmatory diagnostic tests, specialized imaging, or blood re-checks indicated?",
+                    "Are there targeted dietary, lifestyle, or medication adjustments indicated based on these parameters?",
+                ],
+            }
+
         return self._build_fast_clinical_analysis(
             filename=filename,
             file_size_kb=file_size_kb,

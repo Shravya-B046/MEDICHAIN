@@ -38,6 +38,9 @@ socket.getaddrinfo = _fallback_getaddrinfo
 
 # Determine database engine and connection fallback
 database_url = settings.DATABASE_URL
+if "connect_timeout=" in database_url:
+    import re
+    database_url = re.sub(r"connect_timeout=\d+", "connect_timeout=2", database_url)
 active_db_type = "postgresql" if database_url.startswith("postgresql") else "sqlite"
 active_db_url = database_url
 
@@ -54,7 +57,7 @@ try:
             import psycopg
 
             def _create_pg_conn():
-                return psycopg.connect(database_url)
+                return psycopg.connect(database_url, connect_timeout=3)
 
             candidate_engine = create_engine(
                 "postgresql+psycopg://",
@@ -68,6 +71,7 @@ try:
                 pg_url = pg_url.replace("postgresql://", "postgresql+psycopg2://", 1)
             candidate_engine = create_engine(
                 pg_url,
+                connect_args={"connect_timeout": 3},
                 pool_pre_ping=True,
             )
     else:

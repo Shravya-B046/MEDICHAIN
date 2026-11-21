@@ -64,6 +64,15 @@ function getApiClient() {
             fd.append("file", file);
             return this.request("/api/reports/upload", { method: "POST", body: fd });
         },
+        uploadAssistantFile: function(file, message, history, context, language) {
+            var fd = new FormData();
+            fd.append("file", file);
+            if (message) fd.append("message", message);
+            if (history) fd.append("history", typeof history === "string" ? history : JSON.stringify(history));
+            if (context) fd.append("context", context);
+            if (language) fd.append("language", language);
+            return this.request("/api/assistant/upload", { method: "POST", body: fd });
+        },
         getHospitals: function () { return this.request("/api/hospitals"); },
         createHospital: function (data) { return this.request("/api/hospitals", { method: "POST", body: data }); },
         deleteHospital: function (id) { return this.request("/api/hospitals/" + id, { method: "DELETE" }); }

@@ -1,5 +1,9 @@
 import io
 import os
+
+# Use in-memory SQLite immediately for tests without remote network delay
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+
 from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
@@ -8,6 +12,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.config import settings
+settings.DATABASE_URL = "sqlite:///:memory:"
 from app.database import Base
 from app.dependencies import get_db
 from app.main import app
