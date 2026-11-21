@@ -109,8 +109,8 @@ body {
 
 .topbar-toggle-btn:hover {
     background: #e0f2fe;
-    border-color: #0e7490;
-    color: #0e7490;
+    border-color: #2F5CA3;
+    color: #24338F;
 }
 
 /* Sidebar Collapsed State */
@@ -273,9 +273,9 @@ body {
 .stat-card {
     background: white;
     padding: 22px;
-    border-radius: 12px;
-    border: 2px solid transparent;
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04);
+    border-radius: 14px;
+    border: 1.5px solid #cbd5e1;
+    box-shadow: 0 4px 14px rgba(23, 30, 87, 0.05);
     transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
         box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
         border-color 0.25s ease;
@@ -283,16 +283,32 @@ body {
 }
 
 .stat-card h3 {
-    color: #64748b;
+    color: #475569;
     font-size: 14px;
     margin-bottom: 12px;
-    transition: color 0.2s ease, font-weight 0.2s ease;
+    font-weight: 600;
+    transition: color 0.2s ease;
 }
 
 .stat-card h1 {
-    font-size: 28px;
-    color: #0f4c81;
-    transition: color 0.2s ease, font-weight 0.2s ease;
+    font-size: 30px;
+    color: #171E57;
+    font-weight: 700;
+    transition: color 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-6px) scale(1.01);
+    border-color: #2F5CA3;
+    box-shadow: 0 14px 28px rgba(36, 51, 143, 0.16);
+}
+
+.stat-card:hover h1 {
+    color: #24338F;
+}
+
+.stat-card:hover h3 {
+    color: #171E57;
 }
 
 /* Feature Cards */
@@ -303,89 +319,178 @@ body {
 .features {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 20px;
+    gap: 22px;
 }
 
 .feature-card {
     background: white;
-    padding: 25px;
-    border-radius: 12px;
-    border: 2px solid #e2e8f0;
+    padding: 26px;
+    border-radius: 14px;
+    border: 1.5px solid #cbd5e1;
+    box-shadow: 0 4px 16px rgba(23, 30, 87, 0.06);
     transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
         box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
         border-color 0.25s ease;
     cursor: pointer;
-}
-
-/* Card Pop-Up on Hover with Bold Black Color */
-.stat-card:hover,
-.feature-card:hover {
-    transform: translateY(-8px) scale(1.015);
-    border-color: #000000;
-    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.22), 0 0 0 1px #000000;
-}
-
-.stat-card:hover h1,
-.stat-card:hover h3,
-.stat-card:hover p,
-.feature-card:hover h1,
-.feature-card:hover h2,
-.feature-card:hover h3,
-.feature-card:hover p {
-    color: #000000 !important;
-}
-
-.stat-card:hover h1,
-.feature-card:hover h3 {
-    font-weight: 800;
-}
-
-.stat-card:hover h3,
-.feature-card:hover p {
-    font-weight: 600;
-}
-
-.feature-card:hover button {
-    background: #000000;
-    color: white;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
 }
 
 .feature-card .icon {
-    font-size: 30px;
-    margin-bottom: 15px;
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    margin-bottom: 16px;
     transition: transform 0.25s ease;
 }
 
 .feature-card:hover .icon {
-    transform: scale(1.15);
+    transform: scale(1.12);
 }
 
 .feature-card h3 {
     margin-bottom: 10px;
-    color: #0f4c81;
-    transition: color 0.2s ease, font-weight 0.2s ease;
+    color: #171E57;
+    font-size: 19px;
+    font-weight: 700;
+    transition: color 0.2s ease;
 }
 
 .feature-card p {
-    color: #64748b;
+    color: #475569;
     line-height: 1.6;
-    transition: color 0.2s ease, font-weight 0.2s ease;
+    font-size: 14px;
+    flex: 1;
 }
 
 .feature-card button {
-    margin-top: 18px;
-    padding: 11px 18px;
+    margin-top: 20px;
+    padding: 11px 20px;
     border: none;
-    border-radius: 7px;
-    background: #0e7490;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #171E57 0%, #24338F 50%, #2F5CA3 100%);
     color: white;
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 12px rgba(36, 51, 143, 0.25);
+    align-self: flex-start;
 }
 
 .feature-card button:hover {
-    background: #155e75;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(36, 51, 143, 0.35);
+}
+
+/* Feature 1: AI Health Assistant (Royal Indigo / Medichain Blue) */
+#assistant {
+    border-top: 4px solid #24338F;
+}
+
+#assistant .icon {
+    background: #e0f2fe;
+    color: #24338F;
+}
+
+#assistant:hover {
+    transform: translateY(-8px) scale(1.012);
+    border-color: #24338F;
+    box-shadow: 0 16px 32px rgba(36, 51, 143, 0.2);
+}
+
+#assistant button {
+    background: linear-gradient(135deg, #171E57 0%, #24338F 60%, #2F5CA3 100%);
+    box-shadow: 0 4px 14px rgba(36, 51, 143, 0.3);
+}
+
+#assistant:hover button {
+    background: linear-gradient(135deg, #24338F 0%, #2F5CA3 60%, #3B8DAE 100%);
+    box-shadow: 0 6px 18px rgba(36, 51, 143, 0.4);
+}
+
+/* Feature 2: Hospital Resources (Medichain Blue / Cerulean) */
+#resources {
+    border-top: 4px solid #2F5CA3;
+}
+
+#resources .icon {
+    background: #dbeafe;
+    color: #2F5CA3;
+}
+
+#resources:hover {
+    transform: translateY(-8px) scale(1.012);
+    border-color: #2F5CA3;
+    box-shadow: 0 16px 32px rgba(47, 92, 163, 0.2);
+}
+
+#resources button {
+    background: linear-gradient(135deg, #24338F 0%, #2F5CA3 60%, #3B8DAE 100%);
+    box-shadow: 0 4px 14px rgba(47, 92, 163, 0.3);
+}
+
+#resources:hover button {
+    background: linear-gradient(135deg, #2F5CA3 0%, #3B8DAE 60%, #2EBFB7 100%);
+    box-shadow: 0 6px 18px rgba(47, 92, 163, 0.4);
+}
+
+/* Feature 3: Emergency Coordination (Emergency Red Accent + Navy) */
+#emergency {
+    border-top: 4px solid #dc2626;
+}
+
+#emergency .icon {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+#emergency:hover {
+    transform: translateY(-8px) scale(1.012);
+    border-color: #dc2626;
+    box-shadow: 0 16px 32px rgba(220, 38, 38, 0.2);
+}
+
+#emergency button {
+    background: linear-gradient(135deg, #991b1b 0%, #dc2626 60%, #ef4444 100%);
+    box-shadow: 0 4px 14px rgba(220, 38, 38, 0.3);
+}
+
+#emergency:hover button {
+    background: linear-gradient(135deg, #b91c1c 0%, #ef4444 60%, #f87171 100%);
+    box-shadow: 0 6px 18px rgba(220, 38, 38, 0.4);
+}
+
+/* Feature 4: Report Analysis (Teal / Turquoise Mint + Cerulean) */
+#reports {
+    border-top: 4px solid #2EBFB7;
+}
+
+#reports .icon {
+    background: #ccfbf1;
+    color: #0f766e;
+}
+
+#reports:hover {
+    transform: translateY(-8px) scale(1.012);
+    border-color: #2EBFB7;
+    box-shadow: 0 16px 32px rgba(46, 191, 183, 0.25);
+}
+
+#reports button {
+    background: linear-gradient(135deg, #24338F 0%, #2F5CA3 40%, #2EBFB7 100%);
+    box-shadow: 0 4px 14px rgba(46, 191, 183, 0.3);
+}
+
+#reports:hover button {
+    background: linear-gradient(135deg, #2F5CA3 0%, #3B8DAE 50%, #2EBFB7 100%);
+    box-shadow: 0 6px 18px rgba(46, 191, 183, 0.4);
 }
 
 /* Responsive Design */
@@ -640,7 +745,7 @@ body {
 }
 
 .user-message {
-    background: #0e7490;
+    background: linear-gradient(135deg, #171E57 0%, #24338F 60%, #2F5CA3 100%);
     color: white;
     align-self: flex-end;
 }
@@ -717,8 +822,8 @@ body {
 }
 
 .chat-input-wrapper input:focus {
-    border-color: #0e7490;
-    box-shadow: 0 0 0 3px rgba(14, 116, 144, 0.15);
+    border-color: #2F5CA3;
+    box-shadow: 0 0 0 3px rgba(47, 92, 163, 0.15);
 }
 
 .mic-btn {
@@ -741,7 +846,7 @@ body {
 
 .mic-btn:hover {
     background: #f1f5f9 !important;
-    color: #0e7490 !important;
+    color: #24338F !important;
     transform: scale(1.08);
 }
 
@@ -814,7 +919,7 @@ body {
 
 .chat-input #sendBtn {
     padding: 13px 24px;
-    background: #0e7490;
+    background: linear-gradient(135deg, #171E57 0%, #24338F 60%, #2F5CA3 100%);
     color: white;
     border: none;
     border-radius: 10px;
@@ -826,12 +931,13 @@ body {
     gap: 6px;
     flex-shrink: 0;
     transition: all 0.2s ease;
+    box-shadow: 0 3px 10px rgba(36, 51, 143, 0.28);
 }
 
 .chat-input #sendBtn:hover {
-    background: #155e75;
+    background: linear-gradient(135deg, #24338F 0%, #2F5CA3 60%, #3B8DAE 100%);
     transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(14, 116, 144, 0.25);
+    box-shadow: 0 5px 14px rgba(36, 51, 143, 0.38);
 }
 
 .disclaimer {
@@ -929,10 +1035,11 @@ body {
     display: inline-block;
     margin-top: 6px;
     font-size: 11px;
-    color: #b45309;
-    background: #fef3c7;
-    padding: 2px 8px;
-    border-radius: 10px;
+    color: #0369a1;
+    background: #e0f2fe;
+    border: 1px solid #bae6fd;
+    padding: 2px 10px;
+    border-radius: 12px;
     font-weight: 600;
 }
 

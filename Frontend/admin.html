@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MEDICHAIN | Admin Panel</title>
-    <link rel="stylesheet" href="css/style.css?v=10.0">
+    <link rel="stylesheet" href="css/style.css?v=12.0">
     <script>
         (function () {
             var auth = localStorage.getItem("medichain_auth") || sessionStorage.getItem("medichain_auth");
@@ -34,13 +34,26 @@
             padding: 10px 16px;
             border: none;
             border-radius: 6px;
-            background: #176b87;
+            background: linear-gradient(135deg, #171E57 0%, #24338F 50%, #2F5CA3 100%);
             color: white;
+            font-weight: 600;
             cursor: pointer;
+            box-shadow: 0 2px 6px rgba(36, 51, 143, 0.25);
+            transition: all 0.2s ease;
+        }
+
+        .admin-form button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(36, 51, 143, 0.35);
         }
 
         .delete-btn {
-            background: #d9546f;
+            background: #dc2626;
+            box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+        }
+
+        .delete-btn:hover {
+            background: #b91c1c;
         }
 
         .admin-table {
