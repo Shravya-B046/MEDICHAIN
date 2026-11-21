@@ -385,6 +385,30 @@ function getBestVoice(targetLang) {
     return voices[0] || null;
 }
 
+function playAudioChime() {
+    try {
+        var AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        var ctx = new AudioCtx();
+        if (ctx.state === "suspended") {
+            ctx.resume();
+        }
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.25);
+    } catch (e) {
+        console.warn("Chime notice:", e);
+    }
+}
+
 function stopSpeaking() {
     if ("speechSynthesis" in window) {
         try { window.speechSynthesis.cancel(); } catch (e) { }
@@ -404,6 +428,8 @@ function toggleSpeech(btn) {
         alert("Text-to-speech is not supported in this browser. Please try Google Chrome, Microsoft Edge, or Safari.");
         return;
     }
+
+    playAudioChime();
 
     if (activeSpeakingBtn === btn && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) {
         stopSpeaking();
@@ -443,12 +469,10 @@ function toggleSpeech(btn) {
         utterance.lang = "en-US";
     }
 
-    utterance.onstart = function () {
-        activeSpeakingBtn = btn;
-        btn.classList.add("speaking");
-        btn.innerHTML = "<span>⏹️</span> <span>Stop Speaking</span>";
-        btn.setAttribute("title", "Click to stop speaking");
-    };
+    activeSpeakingBtn = btn;
+    btn.classList.add("speaking");
+    btn.innerHTML = "<span>⏹️</span> <span>Stop Speaking</span>";
+    btn.setAttribute("title", "Speaking out loud... Click to stop");
 
     utterance.onend = function () {
         stopSpeaking();
@@ -456,22 +480,24 @@ function toggleSpeech(btn) {
 
     utterance.onerror = function (err) {
         console.warn("Speech synthesis notice:", err);
+        if (err && (err.error === "canceled" || err.error === "interrupted")) {
+            return;
+        }
         stopSpeaking();
     };
 
     currentSpeechUtterance = utterance;
     window._activeSpeechUtterance = utterance;
 
-    setTimeout(function () {
-        try {
-            if (window.speechSynthesis.paused) {
-                window.speechSynthesis.resume();
-            }
-            window.speechSynthesis.speak(utterance);
-        } catch (e) {
-            console.error("speechSynthesis.speak error:", e);
+    try {
+        window.speechSynthesis.speak(utterance);
+        if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
         }
-    }, 60);
+    } catch (e) {
+        console.error("speechSynthesis.speak error:", e);
+        stopSpeaking();
+    }
 }
 
 // ============================================================================
