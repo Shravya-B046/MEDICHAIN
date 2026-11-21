@@ -786,10 +786,11 @@
             };
         }
 
-        function toggleVoiceRecognition() {
+        async function toggleVoiceRecognition() {
             var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
-                showVoiceStatus("⚠️ Speech recognition requires Google Chrome or Microsoft Edge.", true);
+                showVoiceStatus("⚠️ Speech recognition is not supported in this browser. Please open in Google Chrome or Microsoft Edge.", true);
+                alert("Speech recognition is not supported in this browser.\n\nPlease open MEDICHAIN in Google Chrome or Microsoft Edge.");
                 return;
             }
 
@@ -802,6 +803,45 @@
                 } catch (e) { }
                 isVoiceListening = false;
                 updateVoiceState(false);
+                showVoiceStatus("🎙️ Microphone stopped.", false);
+                setTimeout(function () {
+                    var statusPill = document.getElementById("voiceStatusPill");
+                    if (statusPill && !isVoiceListening) statusPill.style.display = "none";
+                }, 2000);
+                return;
+            }
+
+            // Immediate visual feedback
+            updateVoiceState(true);
+            showVoiceStatus("🎙️ Requesting microphone access... (If prompted, click <strong>Allow</strong>)", false);
+
+            // 1. Explicitly request microphone access via getUserMedia to trigger Chrome's permission prompt if needed
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                try {
+                    var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    // Release the temporary stream
+                    stream.getTracks().forEach(function (t) { t.stop(); });
+                } catch (err) {
+                    console.warn("Microphone getUserMedia error:", err);
+                    updateVoiceState(false);
+                    if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+                        showVoiceStatus("🚫 <strong>Microphone Blocked:</strong> Click the 🔒 icon in the URL bar (next to localhost) -> set <strong>Microphone</strong> to <strong>Allow</strong> -> reload page.", true);
+                        alert("Microphone permission was not allowed.\n\nTo enable:\n1. Click the lock 🔒 or tune icon in the Chrome URL bar next to localhost:8081\n2. Set 'Microphone' to 'Allow'\n3. Refresh the page (F5) and click the mic again.");
+                    } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+                        showVoiceStatus("⚠️ <strong>No Microphone Found:</strong> No physical microphone detected on your computer.", true);
+                        alert("No physical microphone was detected on this computer.\n\nPlease plug in a headset or microphone and try again.");
+                    } else {
+                        showVoiceStatus("⚠️ Microphone access error: " + err.message, true);
+                    }
+                    return;
+                }
+            }
+
+            // 2. Check if online (Google Chrome Web Speech API requires internet to reach Google speech servers)
+            if (typeof navigator.onLine !== "undefined" && !navigator.onLine) {
+                updateVoiceState(false);
+                showVoiceStatus("⚠️ <strong>Internet required:</strong> Google Chrome speech recognition requires an active internet connection to Google Speech servers.", true);
+                alert("Internet connection required for Speech-to-Text.\n\nGoogle Chrome sends audio to Google's cloud speech recognition engine to transcribe text. Your computer appears to be offline. Please connect to the internet (Wi-Fi or hotspot) to use the microphone.");
                 return;
             }
 
@@ -811,7 +851,6 @@
                 }
 
                 voiceRecognition = new SpeechRecognition();
-                // continuous = true allows natural pauses without sudden premature cutoffs
                 voiceRecognition.continuous = true;
                 voiceRecognition.interimResults = true;
 
@@ -821,6 +860,7 @@
                 voiceRecognition.onstart = function () {
                     isVoiceListening = true;
                     updateVoiceState(true);
+                    showVoiceStatus("🔴 <strong>Listening...</strong> Speak your symptoms clearly now (click mic again to stop)", false);
                 };
 
                 voiceRecognition.onresult = function (event) {
@@ -835,6 +875,7 @@
                     if (fullTranscript.trim()) {
                         userInput.value = fullTranscript;
                         userInput.focus();
+                        showVoiceStatus("🎙️ Heard: \"<em>" + escapeHtml(fullTranscript) + "</em>\"", false);
                     }
                 };
 
@@ -843,6 +884,7 @@
 
                     // Ignore transient no-speech so natural speech pauses don't cancel recording
                     if (event.error === "no-speech") {
+                        showVoiceStatus("🎙️ Still listening... speak into your microphone", false);
                         return;
                     }
 
@@ -850,9 +892,11 @@
                     updateVoiceState(false);
 
                     if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-                        showVoiceStatus("⚠️ <strong>Microphone blocked:</strong> Click the 🔒 / tune icon in your URL bar, set <strong>Microphone</strong> to <strong>Allow</strong>, then click the mic again.", true);
+                        showVoiceStatus("🚫 <strong>Microphone blocked:</strong> Click the 🔒 / tune icon in your URL bar, set <strong>Microphone</strong> to <strong>Allow</strong>, then refresh.", true);
+                        alert("Microphone permission was denied.\n\nPlease click the lock 🔒 or settings icon in your Chrome URL bar next to localhost:8081 and toggle Microphone to 'Allow'.");
                     } else if (event.error === "network") {
-                        showVoiceStatus("⚠️ <strong>Network required:</strong> Chrome speech recognition requires an internet connection to Google Speech servers.", true);
+                        showVoiceStatus("⚠️ <strong>Speech network error:</strong> Chrome speech recognition requires an active internet connection to Google's speech cloud. Please check your Wi-Fi/Internet connection.", true);
+                        alert("Speech Recognition Network Error.\n\nGoogle Chrome sends audio to Google's cloud speech recognition engine to transcribe text. Your computer appears to have no internet access or is blocking google.com.\n\nPlease connect your computer to Wi-Fi/Internet to use voice typing, or type your question directly in the text box.");
                     } else if (event.error === "audio-capture") {
                         showVoiceStatus("⚠️ <strong>No microphone detected:</strong> Please check your microphone connection in Windows sound settings.", true);
                     } else if (event.error === "language-not-supported") {
@@ -860,6 +904,8 @@
                             voiceRecognition.lang = "en-US";
                             voiceRecognition.start();
                         } catch (e) { }
+                    } else {
+                        showVoiceStatus("⚠️ Speech recognition error: " + event.error, true);
                     }
                 };
 
@@ -869,6 +915,7 @@
                     var userInput = document.getElementById("userInput");
                     if (userInput && userInput.value.trim().length > 0) {
                         userInput.focus();
+                        showVoiceStatus("✓ Voice input captured! Click <strong>Send ➤</strong> or press Enter.", false);
                     }
                 };
 
@@ -877,7 +924,7 @@
                 console.error("Speech recognition startup error:", err);
                 isVoiceListening = false;
                 updateVoiceState(false);
-                showVoiceStatus("⚠️ Could not access microphone. Please check browser permissions.", true);
+                showVoiceStatus("⚠️ Could not start speech recognition: " + err.message, true);
             }
         }
 
